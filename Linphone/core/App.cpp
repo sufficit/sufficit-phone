@@ -97,6 +97,7 @@
 #include "model/tool/ToolModel.hpp"
 #include "tool/Constants.hpp"
 #include "tool/EnumsToString.hpp"
+#include "tool/SufficitOAuth.hpp"
 #include "tool/Utils.hpp"
 #include "tool/accessibility/AccessibilityHelper.hpp"
 #include "tool/accessibility/FocusHelper.hpp"
@@ -569,7 +570,7 @@ void App::setSelf(QSharedPointer<App>(me)) {
 	                                         });
 	mCoreModelConnection->makeConnectToCore(&App::lForceOidcTimeout, [this] {
 		qDebug() << "App: force oidc timeout";
-		mCoreModelConnection->invokeToModel([this] { emit CoreModel::getInstance()->forceOidcTimeout(); });
+		mCoreModelConnection->invokeToModel([this] { emit CoreModel::getInstance() -> forceOidcTimeout(); });
 	});
 	mCoreModelConnection->makeConnectToModel(&CoreModel::timeoutTimerStarted, [this]() {
 		qDebug() << "App: oidc timer started";
@@ -963,6 +964,9 @@ void App::initCppInterfaces() {
 	    [](QQmlEngine *engine, QJSEngine *) -> QObject * { return new Constants(engine); });
 	qmlRegisterSingletonType<Utils>("UtilsCpp", 1, 0, "UtilsCpp",
 	                                [](QQmlEngine *engine, QJSEngine *) -> QObject * { return new Utils(engine); });
+	qmlRegisterSingletonType<SufficitOAuth>(
+	    "SufficitOAuthCpp", 1, 0, "SufficitOAuthCpp",
+	    [](QQmlEngine *engine, QJSEngine *) -> QObject * { return new SufficitOAuth(engine); });
 	qmlRegisterSingletonType<DesktopTools>(
 	    "DesktopToolsCpp", 1, 0, "DesktopToolsCpp",
 	    [](QQmlEngine *engine, QJSEngine *) -> QObject * { return new DesktopTools(engine); });
