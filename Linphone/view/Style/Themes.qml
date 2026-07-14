@@ -12,6 +12,14 @@ QtObject {
                 "main600": "#DA4400",
                 "main700": "#B72D00"
             },
+            "sufficit": {
+                "main100": "#FBE1DF",
+                "main200": "#F5B8B5",
+                "main300": "#ED8B87",
+                "main500": "#D11B21",
+                "main600": "#B0181D",
+                "main700": "#8F1317"
+            },
             "yellow": {
                 "main100": "#FFF5D6",
                 "main200": "#FFEFB2",

@@ -1179,7 +1179,7 @@ DEFINE_GETSET_CONFIG_STRING(SettingsModel,
 							themeMainColor,
 							ThemeMainColor,
 							"theme_main_color",
-							"orange")
+							"sufficit")
 DEFINE_GETSET_CONFIG_STRING(SettingsModel,
 							themeAboutPictureUrl,
 							ThemeAboutPictureUrl,
