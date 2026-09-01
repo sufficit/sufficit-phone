@@ -40,18 +40,10 @@ QUuid SufficitOAuth::installationId() {
 	return id;
 }
 
-QString SufficitOAuth::decodeJwtSubject(const QString &jwt) {
-	const QStringList parts = jwt.split('.');
-	if (parts.size() < 2) return QString();
-
-	QString payload = parts[1];
-	payload.replace('-', '+').replace('_', '/');
-	while (payload.size() % 4 != 0)
-		payload.append('=');
-
-	const QByteArray json = QByteArray::fromBase64(payload.toUtf8());
-	const QJsonObject obj = QJsonDocument::fromJson(json).object();
-	return obj.value("sub").toString();
+QNetworkRequest SufficitOAuth::authorized(const QUrl &url) const {
+	QNetworkRequest request(url);
+	if (!mAccessToken.isEmpty()) request.setRawHeader("Authorization", ("Bearer " + mAccessToken).toUtf8());
+	return request;
 }
 
 void SufficitOAuth::login() {
@@ -65,7 +57,7 @@ void SufficitOAuth::login() {
 	mFlow->setAuthorizationUrl(QUrl(QString(AUTHORITY) + "/connect/authorize"));
 	mFlow->setTokenUrl(QUrl(QString(AUTHORITY) + "/connect/token"));
 	mFlow->setClientIdentifier(CLIENT_ID);
-	mFlow->setRequestedScopeTokens({"openid", "profile"});
+	mFlow->setRequestedScopeTokens({"openid", "profile", "offline_access", SCOPE_INSTALLATION});
 	mFlow->setPkceMethod(QOAuth2AuthorizationCodeFlow::PkceMethod::S256);
 	mFlow->setNetworkAccessManager(mNetwork);
 
@@ -86,27 +78,28 @@ void SufficitOAuth::login() {
 }
 
 void SufficitOAuth::onGranted() {
-	const QString idToken = mFlow->extraTokens().value("id_token").toString();
-	const QString userId = decodeJwtSubject(idToken);
+	mAccessToken = mFlow->token();
 
 	setLoggingIn(false);
 
-	if (userId.isEmpty()) {
-		qWarning() << "[SufficitOAuth] could not extract user id from id_token";
-		emit loginFailed("missing_user_id");
+	if (mAccessToken.isEmpty()) {
+		qWarning() << "[SufficitOAuth] no access token in the grant";
+		emit loginFailed("missing_access_token");
 		return;
 	}
 
-	registerInstallation(userId);
+	registerInstallation();
 }
 
-void SufficitOAuth::registerInstallation(const QString &userId) {
-	QNetworkRequest request(QUrl(QString(PROVISIONING_BASE) + "/installations"));
+void SufficitOAuth::registerInstallation() {
+	QNetworkRequest request = authorized(QUrl(QString(PROVISIONING_BASE) + "/installations"));
 	request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
+	// Sem userId no corpo: quem o servidor atende vem do "sub" do token, que
+	// e assinado. Mandar o identificador aqui seria pedir para o servidor
+	// acreditar no cliente.
 	QJsonObject body;
 	body["installationId"] = installationId().toString(QUuid::WithoutBraces);
-	body["userId"] = userId;
 
 	auto *reply = mNetwork->post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
 	connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -124,7 +117,7 @@ void SufficitOAuth::registerInstallation(const QString &userId) {
 
 void SufficitOAuth::pollInstallation() {
 	const QUrl url(QString(PROVISIONING_BASE) + "/installations/" + installationId().toString(QUuid::WithoutBraces));
-	auto *reply = mNetwork->get(QNetworkRequest(url));
+	auto *reply = mNetwork->get(authorized(url));
 	connect(reply, &QNetworkReply::finished, this, [this, reply]() {
 		reply->deleteLater();
 		if (reply->error() != QNetworkReply::NoError) return;
