@@ -123,14 +123,18 @@ void SufficitOAuth::pollInstallation() {
 		if (reply->error() != QNetworkReply::NoError) return;
 
 		const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
-		const QString ramalId = obj.value("assignedRamalId").toString();
-		if (ramalId.isEmpty()) return;
+
+		// A URL vem pronta do servidor, com um bilhete de uso unico e vida
+		// curta. Montar o endereco aqui a partir do identificador do ramal era
+		// o que fazia daquele identificador uma credencial permanente: quem
+		// visse a URL uma vez buscaria a senha SIP para sempre.
+		const QString provisioningUrl = obj.value("provisioningUrl").toString();
+		if (provisioningUrl.isEmpty()) return;
 
 		mPollTimer->stop();
 		setWaitingForRamal(false);
 
-		const QString configUrl = QString(PROVISIONING_BASE) + "/linphone/endpoint?id=" + ramalId;
-		Utils::useFetchConfig(configUrl);
+		Utils::useFetchConfig(QString(PROVISIONING_BASE) + provisioningUrl);
 		emit ramalReady();
 	});
 }
