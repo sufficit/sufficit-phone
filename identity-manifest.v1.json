@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "sufficit-phone-desktop.v1",
+  "rolloutMode": "Enforce",
+  "scopes": [
+    {
+      "name": "provisioning.installation",
+      "displayName": "Provisionamento de instalacoes do Sufficit Phone",
+      "description": "Permite que uma instalacao do Sufficit Phone (desktop) registre-se no servico de provisionamento e receba a configuracao do seu ramal.",
+      "resources": [ "sufficit-provisioning" ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "sufficit-phone-desktop",
+      "displayName": "Sufficit Phone (desktop)",
+      "clientType": "public",
+      "consentType": "implicit",
+      "adoptExisting": true,
+      "authorizeSensitiveTransitions": true,
+      "requirePkce": true,
+      "grantTypes": [ "authorization_code", "refresh_token" ],
+      "responseTypes": [ "code" ],
+      "scopes": [ "openid", "profile", "offline_access", "provisioning.installation" ],
+      "redirectUris": [ "http://127.0.0.1:47623/", "http://localhost:47623/" ]
+    }
+  ]
+}
