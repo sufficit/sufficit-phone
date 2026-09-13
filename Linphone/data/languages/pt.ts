@@ -4000,6 +4000,42 @@ Error</extracomment>
         <translation>Conexão</translation>
     </message>
     <message>
+        <source>Signing in...</source>
+        <translation>A iniciar sessão...</translation>
+    </message>
+    <message>
+        <source>Sign in with Sufficit</source>
+        <translation>Iniciar sessão com a Sufficit</translation>
+    </message>
+    <message>
+        <source>Sign-in complete</source>
+        <translation>Sessão iniciada</translation>
+    </message>
+    <message>
+        <source>Choose this phone&apos;s ramal</source>
+        <translation>Escolha a extensão deste telefone</translation>
+    </message>
+    <message>
+        <source>Open My Provisioning, select a ramal for this device, and keep the app open. Configuration will continue automatically.</source>
+        <translation>Abra O Meu Aprovisionamento, selecione uma extensão para este dispositivo e mantenha a aplicação aberta. A configuração continuará automaticamente.</translation>
+    </message>
+    <message>
+        <source>Access: %1</source>
+        <translation>Aceda a: %1</translation>
+    </message>
+    <message>
+        <source>Open My Provisioning</source>
+        <translation>Abrir O Meu Aprovisionamento</translation>
+    </message>
+    <message>
+        <source>Open My Provisioning to choose this phone&apos;s ramal</source>
+        <translation>Abrir O Meu Aprovisionamento para escolher a extensão deste telefone</translation>
+    </message>
+    <message>
+        <source>Waiting for your selection...</source>
+        <translation>A aguardar a sua escolha...</translation>
+    </message>
+    <message>
         <location filename="../../view/Page/Form/Login/LoginPage.qml" line="63"/>
         <source>assistant_no_account_yet</source>
         <extracomment>&quot;Pas encore de compte ?&quot;</extracomment>

@@ -61,3 +61,5 @@ linphone62*.log
 *.cxxflags
 *.files
 *.includes
+# Worktrees (padrao): arvores de trabalho em <repo>/.worktrees/
+**/.worktrees/

@@ -61,6 +61,8 @@ private:
 	void onGranted();
 	void registerInstallation();
 	void pollInstallation();
+	bool ensureReplyHandlerListening();
+	void failLogin(const QString &reason);
 	void setLoggingIn(bool value);
 	void setWaitingForRamal(bool value);
 

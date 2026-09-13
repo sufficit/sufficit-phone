@@ -304,6 +304,11 @@ App::App(int &argc, char *argv[])
 	QCoreApplication::setApplicationName(EXECUTABLE_NAME);
 	QApplication::setOrganizationDomain(EXECUTABLE_NAME);
 	QCoreApplication::setApplicationVersion(APPLICATION_SEMVER);
+#ifdef Q_OS_LINUX
+	// Keep the Wayland app_id aligned with the installed desktop file so desktop
+	// environments can associate the window with its launcher and icon.
+	QGuiApplication::setDesktopFileName(EXECUTABLE_NAME);
+#endif
 
 	// If not OpenGL, createRender is never call.
 	QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
@@ -1609,6 +1614,7 @@ bool App::generateDesktopFile(const QString &confPath, bool remove, bool openInB
 	                   << (openInBackground ? "Exec=" + exec + " --minimized %u\n" : "Exec=" + exec + " %u\n")
 	                   << (haveIcon ? "Icon=" + iconPath + "\n" : "Icon=" EXECUTABLE_NAME "\n")
 	                   << "Terminal=false\n"
+	                      "StartupWMClass=" EXECUTABLE_NAME "\n"
 	                      "Categories=Network;Telephony;\n"
 	                      "MimeType=x-scheme-handler/sip-" EXECUTABLE_NAME ";x-scheme-handler/sips-" EXECUTABLE_NAME
 	                      ";x-scheme-handler/" EXECUTABLE_NAME "-sip;x-scheme-handler/" EXECUTABLE_NAME

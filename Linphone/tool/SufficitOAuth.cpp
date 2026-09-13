@@ -3,12 +3,13 @@
 
 #include <QDebug>
 #include <QDesktopServices>
+#include <QHostAddress>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSettings>
-#include <QUrlQuery>
+#include <QUrl>
 
 SufficitOAuth::SufficitOAuth(QObject *parent) : QObject(parent) {
 	mNetwork = new QNetworkAccessManager(this);
@@ -46,12 +47,50 @@ QNetworkRequest SufficitOAuth::authorized(const QUrl &url) const {
 	return request;
 }
 
+bool SufficitOAuth::ensureReplyHandlerListening() {
+	if (!mReplyHandler) {
+		mReplyHandler = new QOAuthHttpServerReplyHandler(QHostAddress::LocalHost, REDIRECT_PORT, this);
+	} else if (!mReplyHandler->isListening()) {
+		mReplyHandler->listen(QHostAddress::LocalHost, REDIRECT_PORT);
+	}
+
+	const QUrl callbackUrl(mReplyHandler->callback());
+	const bool callbackReady = mReplyHandler->isListening() && mReplyHandler->port() == REDIRECT_PORT &&
+	                           callbackUrl.scheme() == QStringLiteral("http") &&
+	                           callbackUrl.host() == QStringLiteral("127.0.0.1");
+	if (!callbackReady) {
+		qWarning() << "[SufficitOAuth] callback port" << REDIRECT_PORT << "unavailable:" << callbackUrl;
+		return false;
+	}
+
+	qInfo() << "[SufficitOAuth] redirect callback:" << callbackUrl;
+	return true;
+}
+
+void SufficitOAuth::failLogin(const QString &reason) {
+	// More than one Qt OAuth signal can describe the same failure. The state
+	// guard keeps the UI and diagnostics from receiving duplicate failures.
+	if (!mLoggingIn) return;
+	if (mReplyHandler) mReplyHandler->close();
+	setLoggingIn(false);
+	emit loginFailed(reason);
+}
+
 void SufficitOAuth::login() {
 	if (mLoggingIn) return;
 	setLoggingIn(true);
 
-	if (mFlow) mFlow->deleteLater();
-	if (mReplyHandler) mReplyHandler->deleteLater();
+	// A new flow must not remain connected to the callback handler alongside
+	// an obsolete one. The handler itself is persistent: replacing it through
+	// deleteLater() used to make both instances contend for port 47623 and Qt
+	// then generated an invalid redirect_uri on repeated login attempts.
+	delete mFlow;
+	mFlow = nullptr;
+
+	if (!ensureReplyHandlerListening()) {
+		failLogin(QStringLiteral("callback_port_unavailable"));
+		return;
+	}
 
 	mFlow = new QOAuth2AuthorizationCodeFlow(this);
 	mFlow->setAuthorizationUrl(QUrl(QString(AUTHORITY) + "/connect/authorize"));
@@ -61,18 +100,24 @@ void SufficitOAuth::login() {
 	mFlow->setPkceMethod(QOAuth2AuthorizationCodeFlow::PkceMethod::S256);
 	mFlow->setNetworkAccessManager(mNetwork);
 
-	mReplyHandler = new QOAuthHttpServerReplyHandler(REDIRECT_PORT, this);
 	mFlow->setReplyHandler(mReplyHandler);
 
-	connect(mFlow, &QAbstractOAuth::authorizeWithBrowser, this,
-	        [](const QUrl &url) { QDesktopServices::openUrl(url); });
+	connect(mFlow, &QAbstractOAuth::authorizeWithBrowser, this, [this](const QUrl &url) {
+		if (!QDesktopServices::openUrl(url)) {
+			qWarning() << "[SufficitOAuth] could not open the system browser";
+			failLogin(QStringLiteral("browser_open_failed"));
+		}
+	});
 	connect(mFlow, &QOAuth2AuthorizationCodeFlow::granted, this, &SufficitOAuth::onGranted);
 	connect(mFlow, &QAbstractOAuth2::serverReportedErrorOccurred, this,
 	        [this](const QString &error, const QString &description, const QUrl &) {
 		        qWarning() << "[SufficitOAuth] error:" << error << description;
-		        setLoggingIn(false);
-		        emit loginFailed(description.isEmpty() ? error : description);
+		        failLogin(description.isEmpty() ? error : description);
 	        });
+	connect(mFlow, &QAbstractOAuth::requestFailed, this, [this](QAbstractOAuth::Error error) {
+		qWarning() << "[SufficitOAuth] request failed:" << error;
+		failLogin(QStringLiteral("oauth_request_failed"));
+	});
 
 	mFlow->grant();
 }
@@ -80,6 +125,9 @@ void SufficitOAuth::login() {
 void SufficitOAuth::onGranted() {
 	mAccessToken = mFlow->token();
 
+	// The loopback listener is needed only for the authorization callback.
+	// Releasing the fixed port also lets another app instance authenticate.
+	if (mReplyHandler) mReplyHandler->close();
 	setLoggingIn(false);
 
 	if (mAccessToken.isEmpty()) {
@@ -87,6 +135,12 @@ void SufficitOAuth::onGranted() {
 		emit loginFailed("missing_access_token");
 		return;
 	}
+
+	// Never log the credential itself. The shape is enough to diagnose a
+	// resource-server contract mismatch: signed JWTs have three segments,
+	// while OpenIddict reference tokens are opaque.
+	qInfo() << "[SufficitOAuth] access token format:"
+	        << (mAccessToken.count(QLatin1Char('.')) == 2 ? "jwt" : "reference");
 
 	registerInstallation();
 }
@@ -104,11 +158,15 @@ void SufficitOAuth::registerInstallation() {
 	auto *reply = mNetwork->post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
 	connect(reply, &QNetworkReply::finished, this, [this, reply]() {
 		reply->deleteLater();
+		const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 		if (reply->error() != QNetworkReply::NoError) {
-			qWarning() << "[SufficitOAuth] failed to register installation:" << reply->errorString();
+			const QByteArray challenge = reply->rawHeader("WWW-Authenticate");
+			qWarning() << "[SufficitOAuth] failed to register installation; HTTP" << status << reply->errorString()
+			           << "challenge:" << challenge;
 			emit loginFailed("installation_registration_failed");
 			return;
 		}
+		qInfo() << "[SufficitOAuth] installation registered; HTTP" << status;
 		setWaitingForRamal(true);
 		mPollTimer->start();
 		pollInstallation();

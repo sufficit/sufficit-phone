@@ -4022,6 +4022,42 @@ Apenas seu correspondente pode descriptografá-las.</translation>
         <translation>Conexão</translation>
     </message>
     <message>
+        <source>Signing in...</source>
+        <translation>Entrando...</translation>
+    </message>
+    <message>
+        <source>Sign in with Sufficit</source>
+        <translation>Entrar com a Sufficit</translation>
+    </message>
+    <message>
+        <source>Sign-in complete</source>
+        <translation>Login concluído</translation>
+    </message>
+    <message>
+        <source>Choose this phone&apos;s ramal</source>
+        <translation>Escolha o ramal deste telefone</translation>
+    </message>
+    <message>
+        <source>Open My Provisioning, select a ramal for this device, and keep the app open. Configuration will continue automatically.</source>
+        <translation>Abra Meu Provisionamento, selecione um ramal para este dispositivo e mantenha o aplicativo aberto. A configuração continuará automaticamente.</translation>
+    </message>
+    <message>
+        <source>Access: %1</source>
+        <translation>Acesse: %1</translation>
+    </message>
+    <message>
+        <source>Open My Provisioning</source>
+        <translation>Abrir Meu Provisionamento</translation>
+    </message>
+    <message>
+        <source>Open My Provisioning to choose this phone&apos;s ramal</source>
+        <translation>Abrir Meu Provisionamento para escolher o ramal deste telefone</translation>
+    </message>
+    <message>
+        <source>Waiting for your selection...</source>
+        <translation>Aguardando sua escolha...</translation>
+    </message>
+    <message>
         <location filename="../../view/Page/Form/Login/LoginPage.qml" line="63"/>
         <source>assistant_no_account_yet</source>
         <extracomment>&quot;Pas encore de compte ?&quot;</extracomment>
