@@ -27,7 +27,7 @@ jobs:
         id: submods
         shell: bash
         run: |
-          key="submods-$( { git ls-tree -r HEAD external/ | awk '$1=="160000"'; cat .gitmodules; cat external/linphone-sdk/.gitmodules 2>/dev/null; } | sha256sum | cut -d' ' -f1)"
+          key="submods-$( { git ls-tree -r HEAD external/ | awk '$1=="160000"'; cat .gitmodules; cat external/linphone-sdk/.gitmodules 2>/dev/null || true; } | sha256sum | cut -d' ' -f1)"
           echo "key=$key" >> "$GITHUB_OUTPUT"
           echo "chave de cache: $key"
 
