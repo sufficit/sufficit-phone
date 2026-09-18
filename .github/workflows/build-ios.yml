@@ -24,7 +24,23 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive
+          submodules: false
+
+      - name: Fetch submodules (with retries)
+        shell: bash
+        run: |
+          set -e
+          for i in 1 2 3 4 5; do
+            echo "Tentativa $i de fetch dos submódulos..."
+            if git submodule sync --recursive && git submodule update --init --recursive --jobs 4; then
+              echo "Submódulos OK na tentativa $i"
+              exit 0
+            fi
+            echo "Falhou; aguardando 30s antes de retry"
+            sleep 30
+          done
+          echo "gitlab.linphone.org inacessível após 5 tentativas"
+          exit 1
 
       - name: Configure SDK (ios-arm64-simulator)
         run: cmake -S external/linphone-sdk -B build-ios --preset ios-arm64-simulator
