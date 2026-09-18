@@ -30,20 +30,33 @@ jobs:
           fetch-depth: 0
           submodules: false
 
+      - name: Compute submodule cache key
+        id: submods
+        run: |
+          key="submods-$( { git ls-tree -r HEAD external/ | awk '$1=="160000"'; cat .gitmodules; cat external/linphone-sdk/.gitmodules 2>/dev/null; } | sha256sum | cut -d' ' -f1)"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          echo "chave de cache: $key"
+
+      - name: Cache submodules (object store)
+        uses: actions/cache@v4
+        with:
+          path: .git/modules
+          key: ${{ steps.submods.outputs.key }}
+
       - name: Fetch submodules (with retries)
         shell: bash
         run: |
           set -e
-          for i in 1 2 3 4 5; do
+          for i in 1 2 3 4 5 6 7 8 9 10; do
             echo "Tentativa $i de fetch dos submódulos..."
-            if git submodule sync --recursive && git submodule update --init --recursive --jobs 4; then
+            if git submodule sync --recursive && git submodule update --init --recursive; then
               echo "Submódulos OK na tentativa $i"
               exit 0
             fi
-            echo "Falhou; aguardando 30s antes de retry"
-            sleep 30
+            echo "Falhou; aguardando 45s antes de retry (o update é incremental)"
+            sleep 45
           done
-          echo "gitlab.linphone.org inacessível após 5 tentativas"
+          echo "gitlab.linphone.org inacessível após 10 tentativas"
           exit 1
 
       - uses: actions/setup-java@v4
