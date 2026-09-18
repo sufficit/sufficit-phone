@@ -63,3 +63,6 @@ linphone62*.log
 *.includes
 # Worktrees (padrao): arvores de trabalho em <repo>/.worktrees/
 **/.worktrees/
+# GitHub Actions workflows
+!.github/
+!.github/**

@@ -1,0 +1,69 @@
+# Builds the linphone-sdk for Android (AAR) — the library a future Android
+# app of Sufficit Phone will consume. This fork has no Android app UI yet,
+# so this job produces SDK artifacts, not an installable APK.
+name: Build Android SDK (AAR)
+
+on:
+  push:
+    branches: [main]
+    paths: ['external/linphone-sdk', '.github/workflows/build-android.yml']
+  pull_request:
+    paths: ['external/linphone-sdk', '.github/workflows/build-android.yml']
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: build-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  aar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [bundled-android-arm64, bundled-android-armv7, bundled-android-x86_64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Resolve Android NDK
+        run: |
+          if [ -z "${ANDROID_NDK_HOME:-}" ]; then
+            export ANDROID_NDK_HOME="${ANDROID_NDK_LATEST_HOME:-$ANDROID_HOME/ndk-bundle}"
+          fi
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> "$GITHUB_ENV"
+          echo "Using NDK at $ANDROID_NDK_HOME"
+
+      - name: Configure SDK (${{ matrix.preset }})
+        run: cmake -S external/linphone-sdk -B build-android --preset ${{ matrix.preset }}
+
+      - name: Build SDK (${{ matrix.preset }})
+        run: cmake --build build-android --parallel "$(nproc)"
+
+      - name: Collect artifact
+        run: |
+          set -e
+          mkdir -p dist
+          found=0
+          while IFS= read -r -d '' f; do
+            base=$(basename "$f")
+            cp "$f" "dist/${{ matrix.preset }}-$base"
+            found=1
+          done < <(find build-android -name '*.aar' -print0 2>/dev/null)
+          if [ "$found" -eq 0 ]; then echo "AAR not found"; find build-android -maxdepth 5 -type f -name '*linphone*' | head -50; exit 1; fi
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sufficit-phone-android-sdk-${{ matrix.preset }}
+          path: dist/*
+          if-no-files-found: error

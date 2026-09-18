@@ -1,0 +1,53 @@
+# Creates a GitHub Release with the desktop installers when a version tag
+# (e.g. 6.2.0) is pushed. Tag the tip of main without the "v" prefix —
+# the build derives LINPHONEAPP_VERSION from `git describe`.
+name: Release
+
+on:
+  push:
+    tags: ['[0-9]*.[0-9]*.[0-9]*']
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/build-linux.yml
+  windows:
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/build-windows.yml
+  macos:
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/build-macos.yml
+
+  publish:
+    needs: [linux, windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sufficit-phone-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -e
+          tag="${GITHUB_REF_NAME}"
+          ls -la dist
+          gh release create "$tag" dist/* \
+            --title "Sufficit Phone $tag" \
+            --notes "Instaladores do Sufficit Phone $tag.
+
+          - Linux: AppImage (x86_64)
+          - Windows: instalador NSIS (x64)
+          - macOS: imagem de disco (não assinada; use botão direito > Abrir no primeiro acesso)
+
+          Verifique a integridade com os arquivos SHA256SUMS." \
+            || gh release upload "$tag" dist/* --clobber
+          gh release view "$tag" --json assets --jq '.assets[].name'

@@ -1,0 +1,68 @@
+name: Build Windows (NSIS)
+
+on:
+  push:
+    branches: [main]
+    paths: ['Linphone/**', 'cmake/**', 'external/**', 'CMakeLists.txt', '.github/workflows/build-windows.yml']
+  pull_request:
+    paths: ['Linphone/**', 'cmake/**', 'external/**', 'CMakeLists.txt', '.github/workflows/build-windows.yml']
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nsis:
+    runs-on: windows-2022
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install NSIS
+        run: choco install nsis -y --no-progress
+
+      - name: Install Qt 6.10.3
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: 'qtmultimedia qtnetworkauth qtshadertools'
+          cache: true
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          $env:Path = "C:\\Program Files (x86)\\NSIS;$env:Path"
+          cmake -S . -B build-desktop -G "Visual Studio 17 2022" -A x64 `
+            -DLINPHONESDK_PLATFORM=Desktop `
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DENABLE_APP_PACKAGING=ON
+
+      - name: Build and package
+        shell: pwsh
+        run: cmake --build build-desktop --config RelWithDebInfo --target install --parallel $env:NUMBER_OF_PROCESSORS
+
+      - name: Collect artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $exe = Get-ChildItem 'build-desktop/OUTPUT/Packages' -Filter *.exe | Select-Object -First 1
+          if (-not $exe) { Get-ChildItem 'build-desktop/OUTPUT' -Recurse -File | Select-Object -First 50 -ExpandProperty FullName; throw 'installer .exe not found' }
+          Copy-Item $exe.FullName "dist/sufficit-phone-win64.exe"
+          $hash = (Get-FileHash "dist/sufficit-phone-win64.exe" -Algorithm SHA256).Hash.ToLower()
+          "$hash  sufficit-phone-win64.exe" | Out-File -Encoding ascii dist/SHA256SUMS.txt
+          Get-ChildItem dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sufficit-phone-windows
+          path: dist/*
+          if-no-files-found: error
