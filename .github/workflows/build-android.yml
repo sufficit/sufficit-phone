@@ -30,35 +30,33 @@ jobs:
           fetch-depth: 0
           submodules: false
 
-      - name: Compute submodule cache key
-        id: submods
-        shell: bash
-        run: |
-          key="submods-$( { git ls-tree -r HEAD external/ | awk '$1=="160000"'; cat .gitmodules; cat external/linphone-sdk/.gitmodules 2>/dev/null || true; } | sha256sum | cut -d' ' -f1)"
-          echo "key=$key" >> "$GITHUB_OUTPUT"
-          echo "chave de cache: $key"
-
-      - name: Cache submodules (object store)
-        uses: actions/cache@v4
-        with:
-          path: .git/modules
-          key: ${{ steps.submods.outputs.key }}
-
-      - name: Fetch submodules (with retries)
+      - name: Restore submodules (offline bundle)
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -e
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            echo "Tentativa $i de fetch dos submódulos..."
-            if git submodule sync --recursive && git submodule update --init --recursive; then
-              echo "Submódulos OK na tentativa $i"
-              exit 0
-            fi
-            echo "Falhou; aguardando 45s antes de retry (o update é incremental)"
-            sleep 45
-          done
-          echo "gitlab.linphone.org inacessível após 10 tentativas"
-          exit 1
+          key="${{ vars.SUBMODS_BUNDLE_KEY }}"
+          sha="${{ vars.SUBMODS_BUNDLE_SHA256 }}"
+          if [ -z "$key" ] || [ -z "$sha" ]; then
+            echo "SUBMODS_BUNDLE_KEY/SUBMODS_BUNDLE_SHA256 não definidas (veja .github/workflows/README.md)."
+            exit 1
+          fi
+          tag="submods-${key:0:8}"
+          echo "Baixando bundle $tag..."
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern "submodules-${key}.tar.gz" --output /tmp/submodules.tar.gz
+          echo "$sha  /tmp/submodules.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/submodules.tar.gz
+          test -f external/linphone-sdk/CMakeLists.txt
+          echo "Submódulos restaurados (offline)."
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz python3-pip nasm yasm bison flex
+          python3 -m pip install --user pystache six cython pdoc
+          python3 -c 'import pystache, six; print("Python modules OK:", pystache.__file__)'
 
       - uses: actions/setup-java@v4
         with:
