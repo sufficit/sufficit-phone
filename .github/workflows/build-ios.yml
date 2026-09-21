@@ -1,6 +1,6 @@
-# Builds the linphone-sdk for iOS Simulator (xcframework) — the library a
-# future iOS app of Sufficit Phone will consume. Device builds require an
-# Apple signing identity; add a signed preset/job when that is available.
+# Builds the linphone-sdk for iOS Simulator (xcframework/frameworks) — the
+# library a future iOS app of Sufficit Phone will consume. Device builds
+# require an Apple signing identity; add a signed preset/job when available.
 name: Build iOS SDK (Simulator)
 
 on:
@@ -51,13 +51,26 @@ jobs:
         run: |
           brew install doxygen graphviz nasm yasm meson ninja
           python3 -m pip install --break-system-packages pystache six cython pdoc
-          python3 -c 'import pystache, six; print("Python modules OK:", pystache.__file__)'
+          # macOS não tem "sha256sum" (só shasum -a 256), mas partes do SDK
+          # (ex.: external/rnnoise) chamam "sha256sum" direto; sem o wrapper,
+          # "command not found" vira checksum vazio e o configure falha.
+          if ! command -v sha256sum >/dev/null 2>&1; then
+            BREW_BIN=$(dirname "$(command -v brew)")
+            printf '#!/bin/sh\nexec shasum -a 256 "$@"\n' > "$BREW_BIN/sha256sum"
+            chmod +x "$BREW_BIN/sha256sum"
+            echo "sha256sum ausente; wrapper instalado em $BREW_BIN/sha256sum"
+          fi
+          echo teste | sha256sum >/dev/null && echo "sha256sum OK: $(command -v sha256sum)"
 
-      - name: Configure SDK (ios-arm64-simulator)
-        run: cmake -S external/linphone-sdk -B build-ios --preset ios-arm64-simulator
+      - name: Configure SDK (packager, simulator)
+        run: |
+          cmake -S external/linphone-sdk -B build-ios --preset ios-sdk \
+            -DLINPHONESDK_IOS_PLATFORM=Simulator \
+            -DLINPHONESDK_IOS_ARCHS=arm64 \
+            -DENABLE_WARNINGS_AS_ERRORS=OFF
 
-      - name: Build SDK (ios-arm64-simulator)
-        run: cmake --build build-ios --parallel "$(sysctl -n hw.ncpu)"
+      - name: Build SDK
+        run: cmake --build build-ios --target sdk --parallel "$(sysctl -n hw.ncpu)"
 
       - name: Collect artifact
         run: |
@@ -65,11 +78,10 @@ jobs:
           mkdir -p dist
           found=0
           while IFS= read -r -d '' f; do
-            base=$(basename "$f")
-            cp "$f" "dist/$base"
+            cp "$f" "dist/$(basename "$f")"
             found=1
-          done < <(find build-ios \( -name 'linphone-sdk*.zip' -o -name '*.xcframework' \) -maxdepth 6 -print0 2>/dev/null)
-          if [ "$found" -eq 0 ]; then echo "SDK output not found"; find build-ios -maxdepth 5 -type d -name '*sdk*' | head -50; exit 1; fi
+          done < <(find build-ios \( -name 'linphone-sdk*.zip' -o -name '*.xcframework' \) -print0 2>/dev/null)
+          if [ "$found" -eq 0 ]; then echo "SDK output not found"; find build-ios -maxdepth 3 -type f | head -50; exit 1; fi
           ls -la dist
 
       - uses: actions/upload-artifact@v4

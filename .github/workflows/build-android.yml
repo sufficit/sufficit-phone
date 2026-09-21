@@ -20,10 +20,6 @@ jobs:
   aar:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
-    strategy:
-      fail-fast: false
-      matrix:
-        preset: [bundled-android-arm64, bundled-android-armv7, bundled-android-x86_64]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,7 +52,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y doxygen graphviz python3-pip nasm yasm bison flex meson
           python3 -m pip install --user pystache six cython pdoc
-          python3 -c 'import pystache, six; print("Python modules OK:", pystache.__file__)'
 
       - uses: actions/setup-java@v4
         with:
@@ -71,11 +66,14 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> "$GITHUB_ENV"
           echo "Using NDK at $ANDROID_NDK_HOME"
 
-      - name: Configure SDK (${{ matrix.preset }})
-        run: cmake -S external/linphone-sdk -B build-android --preset ${{ matrix.preset }}
+      - name: Configure SDK (packager, all ABIs)
+        run: |
+          cmake -S external/linphone-sdk -B build-android --preset bundled-android-sdk \
+            -DLINPHONESDK_ANDROID_ARCHS=arm64,armv7,x86_64 \
+            -DENABLE_WARNINGS_AS_ERRORS=OFF
 
-      - name: Build SDK (${{ matrix.preset }})
-        run: cmake --build build-android --parallel "$(nproc)"
+      - name: Build SDK (AAR via gradle)
+        run: cmake --build build-android --target sdk --parallel "$(nproc)"
 
       - name: Collect artifact
         run: |
@@ -83,15 +81,14 @@ jobs:
           mkdir -p dist
           found=0
           while IFS= read -r -d '' f; do
-            base=$(basename "$f")
-            cp "$f" "dist/${{ matrix.preset }}-$base"
+            cp "$f" "dist/$(basename "$f")"
             found=1
-          done < <(find build-android -name '*.aar' -print0 2>/dev/null)
-          if [ "$found" -eq 0 ]; then echo "AAR not found"; find build-android -maxdepth 5 -type f -name '*linphone*' | head -50; exit 1; fi
+          done < <(find build-android \( -name '*.aar' -o -name 'linphone-sdk*.zip' \) -print0 2>/dev/null)
+          if [ "$found" -eq 0 ]; then echo "AAR/zip not found"; find build-android -maxdepth 4 -type f -name '*linphone*' | head -50; exit 1; fi
           ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sufficit-phone-android-sdk-${{ matrix.preset }}
+          name: sufficit-phone-android-sdk
           path: dist/*
           if-no-files-found: error

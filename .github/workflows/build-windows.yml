@@ -60,6 +60,13 @@ jobs:
           $doxygen.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           python -m pip install --user pystache six cython pdoc
           python -c 'import pystache, six; print("Python modules OK:", pystache.__file__)'
+          # find_package(Python3) no Configure pode escolher um interpretador
+          # diferente do "python" usado aqui (hostedtoolcache tem várias
+          # versões); pystache/six são Python puro, então basta expor o
+          # site-packages via PYTHONPATH para qualquer interpretador achar.
+          $site = (python -c "import site; print(site.getusersitepackages())")
+          "PYTHONPATH=$site" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "PYTHONPATH=$site"
 
       - name: Install NSIS
         shell: pwsh

@@ -56,6 +56,17 @@ jobs:
           SITE=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
           echo "PYTHONPATH=$SITE" >> "$GITHUB_ENV"
           echo "site-packages: $SITE"
+          # macOS não tem "sha256sum" (só shasum -a 256), mas o CMake do
+          # external/rnnoise chama "sha256sum" incondicionalmente fora do
+          # Windows; sem checar o RESULT_VARIABLE, "command not found" deixa o
+          # checksum vazio e o build falha com "Checksums do not match".
+          if ! command -v sha256sum >/dev/null 2>&1; then
+            BREW_BIN=$(dirname "$(command -v brew)")
+            printf '#!/bin/sh\nexec shasum -a 256 "$@"\n' > "$BREW_BIN/sha256sum"
+            chmod +x "$BREW_BIN/sha256sum"
+            echo "sha256sum ausente; wrapper instalado em $BREW_BIN/sha256sum"
+          fi
+          echo teste | sha256sum >/dev/null && echo "sha256sum OK: $(command -v sha256sum)"
 
       - name: Install Qt 6.10.3
         uses: jurplel/install-qt-action@v4
