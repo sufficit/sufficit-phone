@@ -49,8 +49,13 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          brew install doxygen graphviz nasm yasm
+          brew install doxygen graphviz nasm yasm meson ninja
           python3 -m pip install --break-system-packages pystache six cython pdoc
+          # O generate do app roda CMake com o Python do hostedtoolcache; exporta
+          # PYTHONPATH para que qualquer interpretador encontre os módulos.
+          SITE=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
+          echo "PYTHONPATH=$SITE" >> "$GITHUB_ENV"
+          echo "site-packages: $SITE"
 
       - name: Install Qt 6.10.3
         uses: jurplel/install-qt-action@v4

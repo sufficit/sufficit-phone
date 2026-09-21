@@ -54,7 +54,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y doxygen graphviz python3-pip nasm yasm bison flex
+          sudo apt-get install -y doxygen graphviz python3-pip nasm yasm bison flex meson
           python3 -m pip install --user pystache six cython pdoc
           python3 -c 'import pystache, six; print("Python modules OK:", pystache.__file__)'
 
