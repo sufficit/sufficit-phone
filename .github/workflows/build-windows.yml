@@ -42,6 +42,30 @@ jobs:
           echo "$sha  /tmp/submodules.tar.gz" | sha256sum -c -
           tar -xzf /tmp/submodules.tar.gz
           test -f external/linphone-sdk/CMakeLists.txt
+          # r16: o make do EP vpx precisa ser o do MSYS2. As regras do
+          # vpx.def executam gen_msvs_def.sh (shebang #!/bin/sh) e o make
+          # mingw (nativo) as perde: o Windows roteia arquivos com shebang
+          # para o launcher do WSL ("Windows Subsystem for Linux has no
+          # installed distributions", rodada 15) ANTES da associacao .sh -
+          # a sonda passou porque o gprobe.sh nao tem shebang. O make do
+          # MSYS2 executa shebang nativamente (configure do vpx passou por
+          # ele na r14). Nao trocamos o make global: o do MSYS2 quebra o
+          # cl do openh264 (C1083 limits.h, r14). Escopo cirurgico: os
+          # templates abaixo sao usados SOMENTE pelo EP vpx no Windows
+          # (configure_file em ExternalDependencies.cmake:932-934).
+          # MSYS2_ENV_CONV_EXCL: make(msys) -> msbuild(nativo) nao pode
+          # converter INCLUDE/LIB/LIBPATH; os templates os exportam em
+          # forma Windows (capturados do vcvars), logo devem passar 1:1.
+          for f in external/linphone-sdk/cmake/Windows/vpx_build.sh.cmake \
+                   external/linphone-sdk/cmake/Windows/vpx_install.sh.cmake; do
+            if ! grep -q 'MSYS2_ENV_CONV_EXCL' "$f"; then
+              sed -i '1a export PATH="/c/msys64/usr/bin:$PATH"' "$f"
+              sed -i '2a export MSYS2_ENV_CONV_EXCL="INCLUDE;LIB;LIBPATH"' "$f"
+            fi
+          done
+          grep -H 'msys64/usr/bin' \
+            external/linphone-sdk/cmake/Windows/vpx_build.sh.cmake \
+            external/linphone-sdk/cmake/Windows/vpx_install.sh.cmake
           echo "Submódulos restaurados (offline)."
 
       - name: Install build dependencies
@@ -265,7 +289,9 @@ jobs:
           # - mingw64: make mingw, o unico com openh264 provado (r11; o
           #   make do MSYS2 perdeu o INCLUDE do cl na r14, C1083 limits.h);
           # - Git\usr\bin: bash/sh antes do stub do WSL (System32). O
-          #   link.exe do GNU ja foi renomeado; o meson do dav1d passa.
+          #   EP vpx sobrescreve localmente o make via PATH no template
+          #   patchado no Restore; o link.exe do GNU ja foi renomeado e o
+          #   meson do dav1d passa.
           $env:Path = "C:\ci-bin;C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin;C:\mingw64\bin;C:\Program Files\Git\usr\bin;C:\msys64\usr\bin;$env:Path"
           foreach ($t in @('link.exe','msbuild.exe','make.exe','bash.exe','sh.exe','nasm.exe','yasm.exe')) {
             $hit = (where.exe $t 2>$null | Select-Object -First 1)
