@@ -1,14 +1,20 @@
 # Creates a GitHub Release with the desktop installers when a version tag
-# (e.g. 6.2.0) is pushed. Tag the tip of main without the "v" prefix —
+# (e.g. 6.2.0, 6.2.0-beta or v6.2.0) is pushed. Tag the tip of main —
 # the build derives LINPHONEAPP_VERSION from `git describe`.
 name: Release
 
 on:
   push:
-    tags: ['[0-9]*.[0-9]*.[0-9]*']
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+      - 'v[0-9]*.[0-9]*.[0-9]*'
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   linux:
@@ -42,6 +48,8 @@ jobs:
           ls -la dist
           gh release create "$tag" dist/* \
             --title "Sufficit Phone $tag" \
+            --verify-tag \
+            --generate-notes \
             --notes "Instaladores do Sufficit Phone $tag.
 
           - Linux: AppImage (x86_64)
