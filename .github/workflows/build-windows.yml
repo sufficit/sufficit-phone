@@ -135,6 +135,14 @@ jobs:
         shell: pwsh
         run: |
           $env:Path = "C:\\Program Files (x86)\\NSIS;$env:Path"
+          # O pwsh do runner sobrescreve o PSModulePath com os diretórios do
+          # PowerShell 7; o powershell.exe 5.1 que o SDK invoca via
+          # execute_process (external/rnnoise valida o checksum do modelo
+          # com Get-FileHash) não encontra seus cmdlets embutidos, o
+          # checksum volta vazio e o Configure falha com "Checksums do not
+          # match". Anexar o diretório nativo do 5.1 restaura os módulos
+          # para os processos filhos do cmake.
+          $env:PSModulePath = "$env:PSModulePath;$env:windir\System32\WindowsPowerShell\v1.0\Modules"
           cmake -S . -B build-desktop -G "Visual Studio 17 2022" -A x64 `
             -DLINPHONESDK_PLATFORM=Desktop `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
