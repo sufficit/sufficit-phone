@@ -84,7 +84,11 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.3 \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DENABLE_APP_PACKAGING=ON \
-            -DENABLE_PQCRYPTO=OFF
+            -DENABLE_PQCRYPTO=OFF \
+            -DLINPHONEAPP_APPLICATION_NAME=SufficitPhone
+          # "SufficitPhone" (sem espaço) é obrigatório: o Makefile do libvpx não
+          # cita caminhos, então "Sufficit Phone.app/Contents/Frameworks" quebra
+          # a regra de instalação ("No rule to make target 'Phone.app/...'").
 
       - name: Build and package
         run: cmake --build build --target install --parallel "$(sysctl -n hw.ncpu)"
