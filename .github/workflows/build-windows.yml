@@ -103,6 +103,27 @@ jobs:
           $env:PATH = "$userScripts;$env:PATH"
           meson --version
           ninja --version
+          # nasm/yasm do choco vivem em "C:\Program Files (x86)\..." (com
+          # espacos). Os makefiles do openh264/vpx expandem o assembler sem
+          # aspas, entao caminho com espaco quebra a regra ("/usr/bin/sh:
+          # C:/Program: No such file or directory"). Copiamos os .exe para um
+          # diretorio sem espacos, que o Configure/Build poem na frente do PATH.
+          New-Item -ItemType Directory -Force C:\ci-bin | Out-Null
+          Copy-Item $nasm.FullName C:\ci-bin\nasm.exe -Force
+          Copy-Item $yasm C:\ci-bin\yasm.exe -Force
+          # O link.exe do GNU coreutils (Git\usr\bin e MSYS2) sombreia o
+          # link.exe da MSVC nos EPs que resolvem pelo PATH; o meson do dav1d
+          # aborta com "Found GNU link.exe instead of MSVC link.exe" mesmo
+          # com msvc-dev-cmd (a rodada 10 provou que a ordem do PATH no
+          # ambiente do MSBuild nao e a do passo). Renomear elimina o
+          # candidato: o unico link.exe resolvivel passa a ser o da MSVC.
+          foreach ($dir in @("$env:ProgramFiles\Git\usr\bin", "$env:ProgramFiles\Git\mingw64\bin", 'C:\msys64\usr\bin', 'C:\msys64\mingw64\bin')) {
+            $gnuLink = Join-Path $dir 'link.exe'
+            if (Test-Path $gnuLink) {
+              Rename-Item $gnuLink 'link.exe.gnu-coreutils.bak'
+              Write-Host "Renomeado $gnuLink -> link.exe.gnu-coreutils.bak"
+            }
+          }
 
       - name: Install NSIS
         shell: pwsh
@@ -139,7 +160,10 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          $env:Path = "C:\\Program Files (x86)\\NSIS;$env:Path"
+          # C:\ci-bin primeiro: o find_program(NASM_PROGRAM) do openh264
+          # captura o caminho do assembler no Configure e ele nao pode ter
+          # espacos (ver bloco no passo de dependencias).
+          $env:Path = "C:\ci-bin;C:\Program Files (x86)\NSIS;$env:Path"
           # O pwsh do runner deixa no PSModulePath herdado os diretórios do
           # PowerShell 7 - incluindo um Microsoft.PowerShell.Utility que
           # declara edição apenas "Core"; o powershell.exe 5.1 que o SDK
@@ -180,7 +204,25 @@ jobs:
 
       - name: Build and package
         shell: pwsh
-        run: cmake --build build-desktop --config RelWithDebInfo --target install --parallel $env:NUMBER_OF_PROCESSORS
+        run: |
+          # Ferramentas MSYS/Git para a cadeia dos EPs (MSBuild -> cmd -> sh):
+          # bash/sh/make precisam resolver antes do System32, senao o stub do
+          # WSL (C:\Windows\System32\bash.exe) captura scripts com shebang
+          # '#!/bin/bash' - foi assim que o gen_msvs_def.sh do vpx morreu com
+          # 'Windows Subsystem for Linux has no installed distributions'.
+          # O link.exe do GNU ja foi renomeado no passo de dependencias; com
+          # isso o unico link.exe no PATH e o da MSVC (msvc-dev-cmd) e o
+          # meson do dav1d passa no sanity check de linkagem.
+          $env:Path = "C:\ci-bin;C:\Program Files\Git\usr\bin;C:\msys64\usr\bin;$env:Path"
+          foreach ($t in @('link.exe','bash.exe','sh.exe','make.exe','nasm.exe','yasm.exe')) {
+            $hit = (where.exe $t 2>$null | Select-Object -First 1)
+            Write-Host "$t -> $hit"
+          }
+          $link = (where.exe link.exe 2>$null | Select-Object -First 1)
+          if (-not $link -or $link -notlike '*Microsoft Visual Studio*') { throw "link.exe inesperado no PATH do build: $link" }
+          $bash = (where.exe bash.exe 2>$null | Select-Object -First 1)
+          if (-not $bash -or $bash -like '*System32\bash.exe') { throw "bash.exe inesperado no PATH do build: $bash (stub do WSL?)" }
+          cmake --build build-desktop --config RelWithDebInfo --target install --parallel $env:NUMBER_OF_PROCESSORS
 
       - name: Collect artifact
         shell: pwsh
