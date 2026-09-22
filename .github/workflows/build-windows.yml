@@ -84,7 +84,7 @@ jobs:
             foreach ($cand in $yasmCandidates) {
               try { & $cand --version *> $null } catch { Write-Host "yasm candidato nao executa: $cand"; continue }
               if ($LASTEXITCODE -eq 0) { $yasm = $cand; break }
-              Write-Host "yasm candidato saiu com exit $LASTEXITCODE: $cand"
+              Write-Host "yasm candidato saiu com exit ${LASTEXITCODE}: $cand"
             }
             if ($doxygen -and $nasm -and $yasm) { $depsOk = $true; break }
             Write-Host "Ainda faltam: doxygen=$([bool]$doxygen) nasm=$([bool]$nasm) yasm=$([bool]$yasm)"
