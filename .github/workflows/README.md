@@ -5,7 +5,7 @@
 - `build-macos.yml` — DMG (macos-14, Qt 6.10.3 via aqt, não assinado).
 - `build-android.yml` — SDK linphone-sdk em AAR único com as 3 ABIs (arm64, armv7, x86_64) via gradle (biblioteca para um futuro app Android).
 - `build-ios.yml` — SDK linphone-sdk para simulador (zip + xcframeworks, sem assinatura) (biblioteca para um futuro app iOS).
-- `release.yml` — ao empurrar uma tag `X.Y.Z` (com ou sem prefixo `v`), monta o Release com os três instaladores e changelog automático. Tags históricas anteriores à CI têm releases de registro (sem binários) criados por script.
+- `release.yml` — ao empurrar uma tag `X.Y.Z` (com ou sem prefixo `v`, incluindo sufixos `-alpha`/`-beta`/`-rc`), monta o Release com os três instaladores e changelog automático; sufixos de pré-release publicam como prerelease. Tags históricas anteriores à CI têm releases de registro (sem binários) criados por script.
 
 Nota: este fork contém apenas o aplicativo desktop (Qt/QML). Os jobs Android/iOS
 constroem o SDK (linphone-sdk), não aplicativos móveis instaláveis.

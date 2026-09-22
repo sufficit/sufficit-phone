@@ -1,13 +1,16 @@
 # Creates a GitHub Release with the desktop installers when a version tag
 # (e.g. 6.2.0, 6.2.0-beta or v6.2.0) is pushed. Tag the tip of main —
 # the build derives LINPHONEAPP_VERSION from `git describe`.
+# Tags with a pre-release suffix (-alpha/-beta/-rc) are published as prerelease.
 name: Release
 
 on:
   push:
     tags:
       - '[0-9]*.[0-9]*.[0-9]*'
+      - '[0-9]*.[0-9]*.[0-9]*-*'
       - 'v[0-9]*.[0-9]*.[0-9]*'
+      - 'v[0-9]*.[0-9]*.[0-9]*-*'
 
 permissions:
   contents: write
@@ -45,8 +48,12 @@ jobs:
         run: |
           set -e
           tag="${GITHUB_REF_NAME}"
+          case "$tag" in
+            *-alpha*|*-beta*|*-rc*) pre=(--prerelease) ;;
+            *) pre=() ;;
+          esac
           ls -la dist
-          gh release create "$tag" dist/* \
+          gh release create "$tag" "${pre[@]}" dist/* \
             --title "Sufficit Phone $tag" \
             --verify-tag \
             --generate-notes \
