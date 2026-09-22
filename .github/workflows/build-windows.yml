@@ -68,15 +68,23 @@ jobs:
             }
             $nasm = Get-ChildItem 'C:\Program Files (x86)\NASM', 'C:\Program Files\NASM' -Filter nasm.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
             if (-not $nasm) { $nasm = Get-ChildItem 'C:\ProgramData\chocolatey\bin' -Filter nasm.exe -ErrorAction SilentlyContinue | Select-Object -First 1 }
-            # yasm: exigido por CheckBuildToolsCommon quando ENABLE_VPX/ENABLE_AV1
-            $yasm = (Get-Command yasm.exe -ErrorAction SilentlyContinue).Source
-            if (-not $yasm) {
-              foreach ($root in @('C:\Program Files (x86)\yasm', 'C:\Program Files\yasm', 'C:\tools\yasm')) {
-                if ($root -and (Test-Path $root)) {
-                  $yasm = Get-ChildItem $root -Filter yasm.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-                  if ($yasm) { break }
-                }
+            # yasm: exigido por CheckBuildToolsCommon quando ENABLE_VPX/ENABLE_AV1.
+            # Preferir o yasm standalone do choco: o do PATH do runner pode ser
+            # o do MSYS2 (depende do msys-2.0.dll do proprio diretorio) e
+            # quebra quando copiado. Validamos com --version antes de aceitar.
+            $yasm = $null
+            $yasmCandidates = @()
+            foreach ($root in @('C:\Program Files (x86)\yasm', 'C:\Program Files\yasm', 'C:\tools\yasm')) {
+              if ($root -and (Test-Path $root)) {
+                $yasmCandidates += @(Get-ChildItem $root -Filter yasm.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
               }
+            }
+            $gcYasm = (Get-Command yasm.exe -ErrorAction SilentlyContinue).Source
+            if ($gcYasm) { $yasmCandidates += $gcYasm }
+            foreach ($cand in $yasmCandidates) {
+              try { & $cand --version *> $null } catch { Write-Host "yasm candidato nao executa: $cand"; continue }
+              if ($LASTEXITCODE -eq 0) { $yasm = $cand; break }
+              Write-Host "yasm candidato saiu com exit $LASTEXITCODE: $cand"
             }
             if ($doxygen -and $nasm -and $yasm) { $depsOk = $true; break }
             Write-Host "Ainda faltam: doxygen=$([bool]$doxygen) nasm=$([bool]$nasm) yasm=$([bool]$yasm)"
@@ -111,6 +119,37 @@ jobs:
           New-Item -ItemType Directory -Force C:\ci-bin | Out-Null
           Copy-Item $nasm.FullName C:\ci-bin\nasm.exe -Force
           Copy-Item $yasm C:\ci-bin\yasm.exe -Force
+          # Smoke test: binario que nao executa (copiado sem a DLL do seu
+          # diretorio, p. ex.) so apareceria como "exit -1" dentro do MSBuild
+          # minutos depois; aqui falha em segundos.
+          try { & C:\ci-bin\nasm.exe -v *> $null } catch { throw "nasm.exe em C:\ci-bin nao executa: $_" }
+          if ($LASTEXITCODE -ne 0) { throw "nasm.exe em C:\ci-bin saiu com exit $LASTEXITCODE" }
+          try { & C:\ci-bin\yasm.exe --version *> $null } catch { throw "yasm.exe em C:\ci-bin nao executa: $_" }
+          if ($LASTEXITCODE -ne 0) { throw "yasm.exe em C:\ci-bin saiu com exit $LASTEXITCODE" }
+          Write-Host "nasm: $(& C:\ci-bin\nasm.exe -v | Select-Object -First 1)"
+          Write-Host "yasm: $(& C:\ci-bin\yasm.exe --version | Select-Object -First 1)"
+          # O make do choco/imagem (C:\mingw64\bin\make.exe) e o sabor mingw:
+          # nao usa sh, entao regras que executam scripts com shebang
+          # ('#!/bin/bash', p. ex. gen_msvs_def.sh do vpx) caem na associacao
+          # do Windows e rodam o stub do WSL (System32\bash.exe) ->
+          # 'Windows Subsystem for Linux has no installed distributions'.
+          # O make do MSYS2 executa shebangs pelo /bin/bash do proprio MSYS2
+          # (e o que o proprio linphone-sdk instala via pacman).
+          if (-not (Test-Path 'C:\msys64\usr\bin\make.exe')) {
+            C:\msys64\usr\bin\pacman.exe -Sy --noconfirm --needed make 2>&1 | Out-Host
+          }
+          if (Test-Path 'C:\msys64\usr\bin\make.exe') {
+            Write-Host 'make do MSYS2 disponivel (C:\msys64\usr\bin\make.exe)'
+          } else {
+            Write-Host 'AVISO: make do MSYS2 indisponivel; o sabor mingw do choco sera usado'
+          }
+          # Rede de seguranca: apontar a associacao .sh da maquina para o bash
+          # do Git em vez do stub do WSL (runner descartavel; cada job roda em
+          # maquina nova, entao a mudanca nao vaza para outros builds).
+          cmd /c 'ftype shfile="C:\Program Files\Git\usr\bin\bash.exe" "%1" %*' | Out-Host
+          if ($LASTEXITCODE -ne 0) { Write-Host 'AVISO: ftype para .sh falhou' }
+          cmd /c 'assoc .sh=shfile' | Out-Host
+          if ($LASTEXITCODE -ne 0) { Write-Host 'AVISO: assoc para .sh falhou' }
           # O link.exe do GNU coreutils (Git\usr\bin e MSYS2) sombreia o
           # link.exe da MSVC nos EPs que resolvem pelo PATH; o meson do dav1d
           # aborta com "Found GNU link.exe instead of MSVC link.exe" mesmo
