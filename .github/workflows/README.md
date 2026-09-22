@@ -7,6 +7,7 @@
 - `build-ios.yml` — SDK linphone-sdk para simulador (zip + xcframeworks, sem assinatura) (biblioteca para um futuro app iOS).
 - `release.yml` — ao empurrar uma tag `X.Y.Z` (com ou sem prefixo `v`, incluindo sufixos `-alpha`/`-beta`/`-rc`), chama os cinco builds, publica os instaladores desktop, empacota Linux em AppImage + `.deb` + `.rpm` + `.tar.gz`, publica os SDKs Android/iOS e gera `SHA256SUMS`; sufixos de pré-release publicam como prerelease. Tags históricas anteriores à CI têm releases de registro (sem binários) criados por script.
 - Assets Linux adicionais são gerados por `.github/scripts/package-linux-from-appimage.sh`; eles usam a mesma árvore validada do AppImage e dependências nativas da distribuição.
+- Nomes de arquivo dos pacotes Linux usam `.` no lugar de `~` (o GitHub não aceita `~` em nomes de asset de release); nos metadados internos do `.deb`/`.rpm` o `~` é mantido para a ordenação correta de pré-release. Assim o `SHA256SUMS` confere de primeira após o download.
 
 Nota: este fork contém apenas o aplicativo desktop (Qt/QML). Os jobs Android/iOS
 constroem SDKs para integração de clientes (AAR/ZIP Android e ZIP/XCFramework de simulador iOS), não APK/AAB/IPA instaláveis. Para publicar apps móveis instaláveis, será necessário adicionar os projetos de aplicativo e, no iOS, assinatura Apple.

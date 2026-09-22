@@ -11,6 +11,10 @@ VERSION=${RAW_VERSION#v}
 # Debian/RPM reject '-' inside upstream parts of the version and a prerelease
 # must order BEFORE the stable release: 6.2.0-rc1 -> 6.2.0~rc1.
 PKG_VERSION=$(printf '%s' "$VERSION" | sed -E 's/^[^0-9]*//; s/-/~/g')
+# GitHub release assets cannot contain '~' (it gets renamed to '.'), which
+# would break 'sha256sum -c SHA256SUMS' after download; keep '~' inside the
+# deb/rpm metadata (correct prerelease ordering) but use '.' in file NAMES.
+FILE_VERSION=$(printf '%s' "$PKG_VERSION" | tr '~' '.')
 
 command -v dpkg-deb >/dev/null
 command -v rpmbuild >/dev/null
@@ -72,7 +76,7 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
 fi
 POSTINST
 chmod 0755 "$DEBROOT/DEBIAN/postinst"
-dpkg-deb --root-owner-group --build "$DEBROOT" "$OUTPUT_DIR/sufficit-phone_${PKG_VERSION}_amd64.deb" >/dev/null
+dpkg-deb --root-owner-group --build "$DEBROOT" "$OUTPUT_DIR/sufficit-phone_${FILE_VERSION}_amd64.deb" >/dev/null
 
 # ---------- RPM ----------
 RPMTOP="$TMP/rpm"
@@ -106,10 +110,10 @@ SPEC
 rpmbuild -bb --define "_topdir $RPMTOP" --buildroot "$RPMTOP/BUILDROOT/sufficit-phone" "$RPMTOP/SPECS/sufficit-phone.spec" >/dev/null 2>&1
 RPM_FILE=$(find "$RPMTOP/RPMS" -type f -name '*.rpm' -print -quit)
 test -n "$RPM_FILE"
-cp "$RPM_FILE" "$OUTPUT_DIR/sufficit-phone-${PKG_VERSION}-1.x86_64.rpm"
+cp "$RPM_FILE" "$OUTPUT_DIR/sufficit-phone-${FILE_VERSION}-1.x86_64.rpm"
 
 # ---------- Portable tar.gz ----------
-TAR_NAME="sufficit-phone-${PKG_VERSION}-linux-x86_64"
+TAR_NAME="sufficit-phone-${FILE_VERSION}-linux-x86_64"
 TARROOT="$TMP/$TAR_NAME"
 mkdir -p "$TARROOT"
 cp -a "$PKG/usr" "$TARROOT/usr"
