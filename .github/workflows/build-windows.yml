@@ -150,10 +150,17 @@ jobs:
           # Falha rápida e clara (antes do cmake) se o 5.1 não resolver Get-FileHash.
           powershell -NoProfile -Command "exit [int](-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue))"
           if ($LASTEXITCODE -ne 0) { throw 'Get-FileHash indisponível no powershell.exe 5.1 (PSModulePath incorreto?)' }
+          # ENABLE_CRASH_HANDLER=OFF: com o crash handler ligado no Windows
+          # o Configure executa gclient.bat (chromium-depot-tools) e gn para
+          # compilar o crashpad - submódulos propositalmente vazios no bundle
+          # offline (ver README). Em macOS/Linux o bloco é WIN32-only e o
+          # alvo Crashpad nunca é criado; OFF equipara o Windows a eles
+          # (HAVE_CRASH_HANDLER fica indefinido e o app compila sem crashpad).
           cmake -S . -B build-desktop -G "Visual Studio 17 2022" -A x64 `
             -DLINPHONESDK_PLATFORM=Desktop `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
-            -DENABLE_APP_PACKAGING=ON
+            -DENABLE_APP_PACKAGING=ON `
+            -DENABLE_CRASH_HANDLER=OFF
 
       - name: Build and package
         shell: pwsh

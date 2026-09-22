@@ -46,4 +46,6 @@ e por isso é excluído.
 
 Os três submódulos em `external/google/` (gn, crashpad, chromium-depot-tools)
 continuam vazios no CI: `CMakeLists.txt` só os usa quando o crash handler
-(BugSplat/crashpad) está habilitado, o que não é o caso dos builds públicos.
+(BugSplat/crashpad) está habilitado. No Windows isso exigiria rodar
+`gclient sync`/gn, então o workflow do Windows passa `-DENABLE_CRASH_HANDLER=OFF`;
+em macOS/Linux o bloco do crashpad é WIN32-only e o alvo nunca é criado.
