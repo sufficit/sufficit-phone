@@ -74,7 +74,7 @@ jobs:
             # quebra quando copiado. Validamos com --version antes de aceitar.
             $yasm = $null
             $yasmCandidates = @()
-            foreach ($root in @('C:\Program Files (x86)\yasm', 'C:\Program Files\yasm', 'C:\tools\yasm')) {
+            foreach ($root in @('C:\ProgramData\chocolatey\lib\yasm\tools', 'C:\Program Files (x86)\yasm', 'C:\Program Files\yasm', 'C:\tools\yasm')) {
               if ($root -and (Test-Path $root)) {
                 $yasmCandidates += @(Get-ChildItem $root -Filter yasm.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
               }
@@ -119,6 +119,8 @@ jobs:
           New-Item -ItemType Directory -Force C:\ci-bin | Out-Null
           Copy-Item $nasm.FullName C:\ci-bin\nasm.exe -Force
           Copy-Item $yasm C:\ci-bin\yasm.exe -Force
+          # Shim do choco exige o arquivo .shim ao lado; copiado sozinho ele quebra
+          if (Test-Path "$yasm.shim") { Copy-Item "$yasm.shim" C:\ci-bin\yasm.exe.shim -Force }
           # Smoke test: binario que nao executa (copiado sem a DLL do seu
           # diretorio, p. ex.) so apareceria como "exit -1" dentro do MSBuild
           # minutos depois; aqui falha em segundos.
