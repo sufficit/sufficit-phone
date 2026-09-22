@@ -312,8 +312,26 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force dist | Out-Null
-          $exe = Get-ChildItem 'build-desktop/OUTPUT/Packages' -Filter *.exe | Select-Object -First 1
-          if (-not $exe) { Get-ChildItem 'build-desktop/OUTPUT' -Recurse -File | Select-Object -First 50 -ExpandProperty FullName; throw 'installer .exe not found' }
+          # r17: o CPack grava o instalador no raiz do build-desktop
+          # (CPACK_PACKAGE_DIRECTORY padrao = CMAKE_BINARY_DIR). A copia para
+          # OUTPUT/Packages feita pelo packaging.cmake do SDK falha em
+          # silencio quando o nome do pacote tem espaco ("Sufficit Phone-...":
+          # execute_process repassa o nome sem aspas e o cp procura um
+          # arquivo chamado "Sufficit"; o resultado nao e checado). Buscamos
+          # nos dois lugares; o artifact e o proprio instalador do NSIS.
+          $exe = $null
+          foreach ($d in @('build-desktop/OUTPUT/Packages', 'build-desktop')) {
+            $exe = Get-ChildItem $d -Filter '*-win64.exe' -File -ErrorAction SilentlyContinue |
+                   Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if ($exe) { Write-Host "installer: $($exe.FullName)"; break }
+          }
+          if (-not $exe) {
+            Write-Host '== build-desktop (raiz, *.exe) =='
+            Get-ChildItem 'build-desktop' -Filter '*.exe' -File -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+            Write-Host '== OUTPUT (primeiros 50 arquivos) =='
+            Get-ChildItem 'build-desktop/OUTPUT' -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 50 -ExpandProperty FullName
+            throw 'installer .exe not found'
+          }
           Copy-Item $exe.FullName "dist/sufficit-phone-win64.exe"
           $hash = (Get-FileHash "dist/sufficit-phone-win64.exe" -Algorithm SHA256).Hash.ToLower()
           "$hash  sufficit-phone-win64.exe" | Out-File -Encoding ascii dist/SHA256SUMS.txt
