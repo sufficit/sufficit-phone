@@ -5,10 +5,11 @@
 - `build-macos.yml` — DMG (macos-14, Qt 6.10.3 via aqt, não assinado).
 - `build-android.yml` — SDK linphone-sdk em AAR único com as 3 ABIs (arm64, armv7, x86_64) via gradle (biblioteca para um futuro app Android).
 - `build-ios.yml` — SDK linphone-sdk para simulador (zip + xcframeworks, sem assinatura) (biblioteca para um futuro app iOS).
-- `release.yml` — ao empurrar uma tag `X.Y.Z` (com ou sem prefixo `v`, incluindo sufixos `-alpha`/`-beta`/`-rc`), monta o Release com os três instaladores e changelog automático; sufixos de pré-release publicam como prerelease. Tags históricas anteriores à CI têm releases de registro (sem binários) criados por script.
+- `release.yml` — ao empurrar uma tag `X.Y.Z` (com ou sem prefixo `v`, incluindo sufixos `-alpha`/`-beta`/`-rc`), chama os cinco builds, publica os instaladores desktop, empacota Linux em AppImage + `.deb` + `.rpm` + `.tar.gz`, publica os SDKs Android/iOS e gera `SHA256SUMS`; sufixos de pré-release publicam como prerelease. Tags históricas anteriores à CI têm releases de registro (sem binários) criados por script.
+- Assets Linux adicionais são gerados por `.github/scripts/package-linux-from-appimage.sh`; eles usam a mesma árvore validada do AppImage e dependências nativas da distribuição.
 
 Nota: este fork contém apenas o aplicativo desktop (Qt/QML). Os jobs Android/iOS
-constroem o SDK (linphone-sdk), não aplicativos móveis instaláveis.
+constroem SDKs para integração de clientes (AAR/ZIP Android e ZIP/XCFramework de simulador iOS), não APK/AAB/IPA instaláveis. Para publicar apps móveis instaláveis, será necessário adicionar os projetos de aplicativo e, no iOS, assinatura Apple.
 
 ## Submódulos offline
 
