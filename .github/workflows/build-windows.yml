@@ -48,7 +48,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          choco install doxygen.install nasm -y --no-progress
+          choco install doxygen.install nasm yasm -y --no-progress
           $doxygen = $null
           foreach ($d in @('C:\Program Files\doxygen', 'C:\Program Files (x86)\doxygen')) {
             if (Test-Path "$d\doxygen.exe") { $doxygen = Get-Item "$d\doxygen.exe"; break }
@@ -62,6 +62,18 @@ jobs:
           if (-not $nasm) { $nasm = Get-ChildItem 'C:\ProgramData\chocolatey\bin' -Filter nasm.exe -ErrorAction SilentlyContinue | Select-Object -First 1 }
           if (-not $nasm) { throw 'nasm.exe não encontrado após a instalação' }
           $nasm.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          # yasm: exigido por CheckBuildToolsCommon quando ENABLE_VPX/ENABLE_AV1
+          $yasm = (Get-Command yasm.exe -ErrorAction SilentlyContinue).Source
+          if (-not $yasm) {
+            foreach ($root in @('C:\Program Files (x86)\yasm', 'C:\Program Files\yasm', 'C:\tools\yasm')) {
+              if (Test-Path $root) {
+                $yasm = Get-ChildItem $root -Filter yasm.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+                if ($yasm) { break }
+              }
+            }
+          }
+          if (-not $yasm) { throw 'yasm.exe não encontrado após a instalação' }
+          Split-Path $yasm -Parent | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           python -m pip install --user pystache six cython pdoc
           python -c 'import pystache, six; print("Python modules OK:", pystache.__file__)'
           # find_package(Python3) no Configure pode escolher um interpretador
