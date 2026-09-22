@@ -49,7 +49,7 @@ jobs:
           set -e
           tag="${GITHUB_REF_NAME}"
           case "$tag" in
-            *-alpha*|*-beta*|*-rc*) pre=(--prerelease) ;;
+            *-*) pre=(--prerelease) ;;
             *) pre=() ;;
           esac
           ls -la dist
