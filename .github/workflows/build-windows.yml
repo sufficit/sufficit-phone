@@ -131,6 +131,11 @@ jobs:
           modules: 'qtmultimedia qtnetworkauth qtshadertools'
           cache: true
 
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Configure
         shell: pwsh
         run: |
@@ -150,6 +155,17 @@ jobs:
           # Falha rápida e clara (antes do cmake) se o 5.1 não resolver Get-FileHash.
           powershell -NoProfile -Command "exit [int](-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue))"
           if ($LASTEXITCODE -ne 0) { throw 'Get-FileHash indisponível no powershell.exe 5.1 (PSModulePath incorreto?)' }
+
+          # Os EPs do linphone-sdk que invocam ferramentas fora do MSBuild
+          # (dav1d via meson; libvpx e openh264 via scripts) resolvem o
+          # link.exe pelo PATH. Sem o ambiente do VS (vcvars), o link.exe
+          # do GNU em Git\usr\bin sombreia o da MSVC e o meson aborta o
+          # dav1d com "Found GNU link.exe instead of MSVC link.exe".
+          # msvc-dev-cmd acima prepende as ferramentas da MSVC ao PATH;
+          # aqui falhamos rápido se algo desfizer isso.
+          $link = (where.exe link.exe 2>$null | Select-Object -First 1)
+          Write-Host "link.exe (PATH) = $link"
+          if (-not $link -or $link -notlike '*Microsoft Visual Studio*') { throw "link.exe inesperado no PATH: $link (msvc-dev-cmd não aplicado?)" }
           # ENABLE_CRASH_HANDLER=OFF: com o crash handler ligado no Windows
           # o Configure executa gclient.bat (chromium-depot-tools) e gn para
           # compilar o crashpad - submódulos propositalmente vazios no bundle
