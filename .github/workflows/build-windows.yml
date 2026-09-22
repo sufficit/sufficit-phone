@@ -130,13 +130,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "yasm.exe em C:\ci-bin saiu com exit $LASTEXITCODE" }
           Write-Host "nasm: $(& C:\ci-bin\nasm.exe -v | Select-Object -First 1)"
           Write-Host "yasm: $(& C:\ci-bin\yasm.exe --version | Select-Object -First 1)"
-          # O make do choco/imagem (C:\mingw64\bin\make.exe) e o sabor mingw:
-          # nao usa sh, entao regras que executam scripts com shebang
-          # ('#!/bin/bash', p. ex. gen_msvs_def.sh do vpx) caem na associacao
-          # do Windows e rodam o stub do WSL (System32\bash.exe) ->
-          # 'Windows Subsystem for Linux has no installed distributions'.
-          # O make do MSYS2 executa shebangs pelo /bin/bash do proprio MSYS2
-          # (e o que o proprio linphone-sdk instala via pacman).
+          # make: dois sabores no runner. O mingw (C:\mingw64\bin) e o
+          # unico com openh264 provado (r11); o make do MSYS2 (instalado
+          # aqui via pacman como o proprio linphone-sdk faz) perdeu o
+          # INCLUDE do cl no caminho ate o openh264 na r14 (C1083
+          # 'limits.h'). Mantemos o do MSYS2 como reserva e deixamos o
+          # mingw64 na frente no PATH do Build; o vpx precisa apenas de
+          # .sh por associacao + msbuild no PATH (ver passo Build).
           if (-not (Test-Path 'C:\msys64\usr\bin\make.exe')) {
             C:\msys64\usr\bin\pacman.exe -Sy --noconfirm --needed make 2>&1 | Out-Host
           }
@@ -152,6 +152,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { Write-Host 'AVISO: ftype para .sh falhou' }
           cmd /c 'assoc .sh=shfile' | Out-Host
           if ($LASTEXITCODE -ne 0) { Write-Host 'AVISO: assoc para .sh falhou' }
+          # A r14 provou que o make mingw entrega receitas de comando unico
+          # (.sh) a associacao do Windows; se ftype/assoc falharem em
+          # silencio, o vpx volta a cair no stub do WSL. Sonda real:
+          Write-Host "assoc .sh = $((cmd /c 'assoc .sh' 2>&1 | Out-String).Trim())"
+          Write-Host "ftype shfile = $((cmd /c 'ftype shfile' 2>&1 | Out-String).Trim())"
+          $probe = Join-Path $env:TEMP 'gprobe.sh'
+          Set-Content -Path $probe -Value 'echo GPROBE_OK' -Encoding ascii
+          $probeOut = (cmd /c $probe 2>&1 | Out-String).Trim()
+          Write-Host "sonda .sh -> $probeOut"
+          if ($probeOut -notlike '*GPROBE_OK*') { throw "execucao de .sh via associacao falhou (saida: $probeOut)" }
           # O link.exe do GNU coreutils (Git\usr\bin e MSYS2) sombreia o
           # link.exe da MSVC nos EPs que resolvem pelo PATH; o meson do dav1d
           # aborta com "Found GNU link.exe instead of MSVC link.exe" mesmo
@@ -246,21 +256,27 @@ jobs:
       - name: Build and package
         shell: pwsh
         run: |
-          # Ferramentas MSYS/Git para a cadeia dos EPs (MSBuild -> cmd -> sh):
-          # bash/sh/make precisam resolver antes do System32, senao o stub do
-          # WSL (C:\Windows\System32\bash.exe) captura scripts com shebang
-          # '#!/bin/bash' - foi assim que o gen_msvs_def.sh do vpx morreu com
-          # 'Windows Subsystem for Linux has no installed distributions'.
-          # O link.exe do GNU ja foi renomeado no passo de dependencias; com
-          # isso o unico link.exe no PATH e o da MSVC (msvc-dev-cmd) e o
-          # meson do dav1d passa no sanity check de linkagem.
-          $env:Path = "C:\ci-bin;C:\Program Files\Git\usr\bin;C:\msys64\usr\bin;$env:Path"
-          foreach ($t in @('link.exe','bash.exe','sh.exe','make.exe','nasm.exe','yasm.exe')) {
+          # Ordem do PATH para a cadeia dos EPs (MSBuild -> cmd -> make/sh):
+          # - ci-bin: nasm/yasm sem espacos (makefiles expandem sem aspas);
+          # - MSBuild\Current\Bin: o vpx decide com `which msbuild.exe`
+          #   (found_devenv) se compila a .sln; sem isso o make imprime
+          #   'Skipping build' e success em 3s sem gerar vpxmd.lib ->
+          #   LNK1104 no mediastreamer2 (rodada 14);
+          # - mingw64: make mingw, o unico com openh264 provado (r11; o
+          #   make do MSYS2 perdeu o INCLUDE do cl na r14, C1083 limits.h);
+          # - Git\usr\bin: bash/sh antes do stub do WSL (System32). O
+          #   link.exe do GNU ja foi renomeado; o meson do dav1d passa.
+          $env:Path = "C:\ci-bin;C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin;C:\mingw64\bin;C:\Program Files\Git\usr\bin;C:\msys64\usr\bin;$env:Path"
+          foreach ($t in @('link.exe','msbuild.exe','make.exe','bash.exe','sh.exe','nasm.exe','yasm.exe')) {
             $hit = (where.exe $t 2>$null | Select-Object -First 1)
             Write-Host "$t -> $hit"
           }
           $link = (where.exe link.exe 2>$null | Select-Object -First 1)
           if (-not $link -or $link -notlike '*Microsoft Visual Studio*') { throw "link.exe inesperado no PATH do build: $link" }
+          $msb = (where.exe msbuild.exe 2>$null | Select-Object -First 1)
+          if (-not $msb -or $msb -notlike '*Microsoft Visual Studio*') { throw "msbuild.exe inesperado no PATH do build: $msb" }
+          $mk = (where.exe make.exe 2>$null | Select-Object -First 1)
+          if (-not $mk -or $mk -notlike '*mingw64*') { throw "make.exe inesperado no PATH do build: $mk (esperado mingw64, provado no openh264)" }
           $bash = (where.exe bash.exe 2>$null | Select-Object -First 1)
           if (-not $bash -or $bash -like '*System32\bash.exe') { throw "bash.exe inesperado no PATH do build: $bash (stub do WSL?)" }
           cmake --build build-desktop --config RelWithDebInfo --target install --parallel $env:NUMBER_OF_PROCESSORS
