@@ -107,7 +107,64 @@ AbstractMainPage {
 					Layout.fillWidth: true
 					//: Check update
 					text: qsTr("help_check_for_update_button_label")
-					onClicked: AppCpp.checkForUpdate(true)
+					enabled: AppCpp.updater.canCheck
+					onClicked: AppCpp.checkInternalForUpdate(true)
+				}
+			}
+			ColumnLayout {
+				Layout.fillWidth: true
+				Layout.leftMargin: leftPanel.leftMargin
+				Layout.rightMargin: leftPanel.rightMargin
+				spacing: Utils.getSizeWithScreenRatio(8)
+				Text {
+					Layout.fillWidth: true
+					visible: AppCpp.updater.state === AppUpdater.Available || AppCpp.updater.state === AppUpdater.Downloading ||
+					         AppCpp.updater.state === AppUpdater.Ready || AppCpp.updater.state === AppUpdater.Checking
+					text: AppCpp.updater.state === AppUpdater.Checking ? qsTr("update_checking") :
+					      AppCpp.updater.state === AppUpdater.Downloading ? qsTr("update_downloading").arg(AppCpp.updater.availableVersion) :
+					      AppCpp.updater.state === AppUpdater.Ready ? qsTr("update_downloaded").arg(AppCpp.updater.availableVersion) :
+					      qsTr("update_available_label").arg(AppCpp.updater.availableVersion)
+					color: DefaultStyle.main2_600
+					font: Typography.p2
+					wrapMode: Text.Wrap
+				}
+				ProgressBar {
+					Layout.fillWidth: true
+					visible: AppCpp.updater.downloading
+					from: 0
+					to: AppCpp.updater.totalBytes > 0 ? AppCpp.updater.totalBytes : 1
+					value: AppCpp.updater.readBytes
+					innerTextVisible: false
+				}
+				Text {
+					Layout.fillWidth: true
+					visible: AppCpp.updater.downloading
+					text: AppCpp.updater.progressText
+					color: DefaultStyle.main2_600
+					font: Typography.p3
+					horizontalAlignment: Text.AlignHCenter
+				}
+				RowLayout {
+					Layout.fillWidth: true
+					visible: AppCpp.updater.canDownload || AppCpp.updater.downloading || AppCpp.updater.canInstall
+					MediumButton {
+						Layout.fillWidth: true
+						visible: AppCpp.updater.canDownload
+						text: qsTr("update_download_button")
+						onClicked: AppCpp.downloadInternalUpdate()
+					}
+					MediumButton {
+						Layout.fillWidth: true
+						visible: AppCpp.updater.downloading
+						text: qsTr("update_cancel_button")
+						onClicked: AppCpp.cancelInternalUpdateDownload()
+					}
+					MediumButton {
+						Layout.fillWidth: true
+						visible: AppCpp.updater.canInstall
+						text: qsTr("update_install_button")
+						onClicked: AppCpp.installInternalUpdate()
+					}
 				}
 			}
 			HelpIconLabelButton {

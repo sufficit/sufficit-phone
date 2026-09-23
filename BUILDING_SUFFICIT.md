@@ -69,3 +69,42 @@ cmake --install build
 ```
 
 Result: `build/OUTPUT/Packages/Sufficit Phone-<version>-x86_64.AppImage`
+
+## Internal updater (AppUpdater)
+
+The app ships an internal update system that reads the GitHub Releases feed of
+this repository (design mirrors sufficit-ai-genius: download + verify in
+background, install only on explicit user click).
+
+Behavior summary:
+
+- **Version comparison**: the version stamped into release assets comes from
+  `bc_compute_full_version` (commit counting) and does **not** match release
+  tags (`6.2.0-alpha.2` tag → `6.2.0-alpha.185+hash` binary). The updater
+  extracts the version from the release asset names (preferring the
+  `linphone-sdk-*` assets, which always carry the exact computed version) and
+  compares it against the running `APPLICATION_SEMVER`. Pre-releases are only
+  offered to clients already running one (override:
+  `SUFFICIT_UPDATE_ALLOW_PRERELEASE=1`).
+- **Integrity**: the installer is verified against the release `SHA256SUMS`
+  asset before anything is offered as "ready to install".
+- **Install modes**: Windows runs the NSIS installer silently (`/S`) and exits;
+  AppImage is swapped in place (with rollback on failure, applied on next
+  launch); macOS DMG and deb/rpm installs hand off to the user (the system
+  package manager owns those).
+
+Environment overrides (useful for testing/enterprise mirrors):
+
+```sh
+SUFFICIT_UPDATE_REPO=owner/name            # releases feed (default: sufficit/sufficit-phone)
+SUFFICIT_UPDATE_ALLOW_PRERELEASE=1         # offer pre-releases to stable clients
+```
+
+CI note: `bc_compute_full_version()` only accepts `-alpha`/`-beta` style
+prerelease tags; tags like `6.2.0-alpha.2` make post-tag `git describe` output
+(`6.2.0-alpha.2-3-g<h>`) FATAL_ERROR at configure time. The desktop workflows
+therefore pre-compute the version with `.github/scripts/app-version.sh` and
+inject it via `-DLINPHONEAPP_VERSION` / `-DLINPHONESDK_VERSION`, skipping that
+code path. When building locally from a directory with those tags, pass e.g.
+`-DLINPHONEAPP_VERSION=6.2.0-alpha.2` (or use the script) to avoid the same
+failure.

@@ -672,6 +672,41 @@
 <context>
     <name>App</name>
     <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_applied_title</source>
+        <translation>Update applied</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_applied_message</source>
+        <translation>The update has replaced the AppImage on disk. Close and launch Sufficit Phone again to start using the new version.</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_manual_install_message</source>
+        <translation>The update was opened outside the application (installer or download page). Follow the system instructions to finish installing it.</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_available_title</source>
+        <translation>New version available</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_available_message</source>
+        <translation>Sufficit Phone %1 is available. Download and install it now?</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_ready_title</source>
+        <translation>Update ready to install</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_ready_message</source>
+        <translation>Version %1 was downloaded and verified. Install it now? The application will close to apply the update.</translation>
+    </message>
+    <message>
         <location filename="../../core/App.cpp" line="381"/>
         <source>remote_provisioning_dialog</source>
         <extracomment>Voulez-vous télécharger et appliquer la configuration depuis cette adresse ?</extracomment>
@@ -4116,6 +4151,41 @@ Expiration : %1</translation>
 </context>
 <context>
     <name>HelpPage</name>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_checking</source>
+        <translation>Checking for updates…</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_downloading</source>
+        <translation>Downloading %1…</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_downloaded</source>
+        <translation>%1 downloaded — ready to install</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_available_label</source>
+        <translation>Version %1 available</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_download_button</source>
+        <translation>Download</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_cancel_button</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_install_button</source>
+        <translation>Install and restart</translation>
+    </message>
     <message>
         <location filename="../../view/Page/Main/Help/HelpPage.qml" line="43"/>
         <source>help_title</source>
@@ -8196,6 +8266,29 @@ Error in the chat</extracomment>
         <location filename="../../view/Control/Tool/Helper/utils.js" line="805"/>
         <source>okButton</source>
         <translation>Ok</translation>
+    </message>
+</context>
+<context>
+    <name>AppUpdater</name>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_network</source>
+        <translation>Could not check for updates. Please verify your connection and try again.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_download</source>
+        <translation>The update could not be downloaded or verified. Please try again later.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_sums_missing</source>
+        <translation>The checksum manifest for this release is unavailable. For safety, the update was not installed.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_install</source>
+        <translation>The update could not be installed.</translation>
     </message>
 </context>
 </TS>

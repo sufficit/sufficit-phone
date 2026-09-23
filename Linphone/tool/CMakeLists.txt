@@ -1,5 +1,6 @@
 list(APPEND _LINPHONEAPP_SOURCES
 	tool/Constants.cpp
+	tool/update/AppUpdater.cpp
 	tool/EnumsToString.cpp
 	tool/Utils.cpp
 	tool/SufficitOAuth.cpp

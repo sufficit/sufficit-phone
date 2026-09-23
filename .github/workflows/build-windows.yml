@@ -232,6 +232,14 @@ jobs:
         with:
           arch: x64
 
+      - name: Compute versions
+        shell: bash
+        run: |
+          APP_VERSION=$(bash .github/scripts/app-version.sh)
+          SDK_VERSION=$(git -C external/linphone-sdk describe --tags --long 2>/dev/null || bash .github/scripts/app-version.sh)
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "SDK_VERSION=$SDK_VERSION" >> "$GITHUB_ENV"
+
       - name: Configure
         shell: pwsh
         run: |
@@ -275,7 +283,9 @@ jobs:
             -DLINPHONESDK_PLATFORM=Desktop `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
             -DENABLE_APP_PACKAGING=ON `
-            -DENABLE_CRASH_HANDLER=OFF
+            -DENABLE_CRASH_HANDLER=OFF `
+            -DLINPHONEAPP_VERSION="$env:APP_VERSION" `
+            -DLINPHONESDK_VERSION="$env:SDK_VERSION"
 
       - name: Build and package
         shell: pwsh

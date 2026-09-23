@@ -150,6 +150,7 @@ constexpr char Constants::DefaultContactParametersOnRemove[];
 constexpr int Constants::DefaultExpires;
 constexpr int Constants::DefaultPublishExpires;
 constexpr char Constants::DownloadUrl[];
+constexpr char Constants::UpdateRepo[];
 constexpr char Constants::VersionCheckReleaseUrl[];
 constexpr char Constants::VersionCheckNightlyUrl[];
 constexpr char Constants::PasswordRecoveryUrl[];

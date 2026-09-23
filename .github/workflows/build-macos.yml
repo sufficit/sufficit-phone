@@ -78,6 +78,13 @@ jobs:
           modules: 'qtmultimedia qtnetworkauth qtshadertools'
           cache: true
 
+      - name: Compute versions
+        run: |
+          APP_VERSION=$(bash .github/scripts/app-version.sh)
+          SDK_VERSION=$(git -C external/linphone-sdk describe --tags --long --match '[0-9]*' 2>/dev/null || bash .github/scripts/app-version.sh)
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "SDK_VERSION=$SDK_VERSION" >> "$GITHUB_ENV"
+
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
@@ -86,7 +93,9 @@ jobs:
             -DENABLE_APP_PACKAGING=ON \
             -DENABLE_PQCRYPTO=OFF \
             -DLINPHONEAPP_APPLICATION_NAME=SufficitPhone \
-            -DLINPHONEAPP_EXECUTABLE_NAME=SufficitPhone
+            -DLINPHONEAPP_EXECUTABLE_NAME=SufficitPhone \
+            -DLINPHONEAPP_VERSION="$APP_VERSION" \
+            -DLINPHONESDK_VERSION="$SDK_VERSION"
           # EXECUTABLE_NAME deve igualar APPLICATION_NAME: o bundle é
           # instalado pelo OUTPUT_NAME do alvo, e as libs/instalação em
           # APPLICATION_NAME.app; nomes diferentes geram DOIS bundles

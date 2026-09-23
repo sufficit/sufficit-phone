@@ -672,6 +672,41 @@
 <context>
     <name>App</name>
     <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_applied_title</source>
+        <translation>Mise à jour appliquée</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_applied_message</source>
+        <translation>La mise à jour a remplacé l'AppImage sur le disque. Fermez puis relancez Sufficit Phone pour utiliser la nouvelle version.</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_manual_install_message</source>
+        <translation>La mise à jour a été ouverte hors de l'application (installateur ou page de téléchargement). Suivez les instructions du système pour terminer l'installation.</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_available_title</source>
+        <translation>Nouvelle version disponible</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_available_message</source>
+        <translation>Sufficit Phone %1 est disponible. La télécharger et l'installer maintenant ?</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_ready_title</source>
+        <translation>Mise à jour prête à être installée</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_ready_message</source>
+        <translation>La version %1 a été téléchargée et vérifiée. L'installer maintenant ? L'application se fermera pour appliquer la mise à jour.</translation>
+    </message>
+    <message>
         <location filename="../../core/App.cpp" line="381"/>
         <source>remote_provisioning_dialog</source>
         <extracomment>Voulez-vous télécharger et appliquer la configuration depuis cette adresse ?</extracomment>
@@ -4116,6 +4151,41 @@ Expiration : %1</translation>
 </context>
 <context>
     <name>HelpPage</name>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_checking</source>
+        <translation>Recherche de mises à jour…</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_downloading</source>
+        <translation>Téléchargement de %1…</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_downloaded</source>
+        <translation>%1 téléchargé — prêt à installer</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_available_label</source>
+        <translation>Version %1 disponible</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_download_button</source>
+        <translation>Télécharger</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_cancel_button</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_install_button</source>
+        <translation>Installer et redémarrer</translation>
+    </message>
     <message>
         <location filename="../../view/Page/Main/Help/HelpPage.qml" line="43"/>
         <source>help_title</source>
@@ -8196,6 +8266,29 @@ Error in the chat</extracomment>
         <location filename="../../view/Control/Tool/Helper/utils.js" line="805"/>
         <source>okButton</source>
         <translation>Ok</translation>
+    </message>
+</context>
+<context>
+    <name>AppUpdater</name>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_network</source>
+        <translation>Impossible de rechercher les mises à jour. Vérifiez votre connexion et réessayez.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_download</source>
+        <translation>La mise à jour n'a pas pu être téléchargée ou vérifiée. Veuillez réessayer plus tard.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_sums_missing</source>
+        <translation>Le manifeste de sommes de contrôle de cette version est indisponible. Par sécurité, la mise à jour n'a pas été installée.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_install</source>
+        <translation>La mise à jour n'a pas pu être installée.</translation>
     </message>
 </context>
 </TS>
