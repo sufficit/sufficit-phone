@@ -50,6 +50,16 @@ set(_MACOS_INSTALL_DIR "${APPLICATION_OUTPUT_DIR}/${_MACOS_INSTALL_RELATIVE_DIR}
 #linphone_sdk_get_inherited_cmake_args(_CMAKE_CONFIGURE_ARGS _CMAKE_BUILD_ARGS)
 #linphone_sdk_get_enable_cmake_args(_MACOS_CMAKE_ARGS)
 set(_MACOS_CMAKE_ARGS "-DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+# bc_compute_full_version() cannot parse `git describe` outputs that follow
+# dot-numbered prerelease tags (e.g. 6.2.0-alpha.2-5-g<h>): CI and local builds
+# pass -DLINPHONEAPP_VERSION/-DLINPHONESDK_VERSION explicitly to skip it, and
+# the per-architecture re-configuration below must receive them too.
+if(LINPHONEAPP_VERSION)
+	list(APPEND _MACOS_CMAKE_ARGS -DLINPHONEAPP_VERSION=${LINPHONEAPP_VERSION})
+endif()
+if(LINPHONESDK_VERSION)
+	list(APPEND _MACOS_CMAKE_ARGS -DLINPHONESDK_VERSION=${LINPHONESDK_VERSION})
+endif()
 set(_MACOS_TARGETS)
 foreach(_MACOS_ARCH IN LISTS _MACOS_ARCHS)
 	set(_TARGET_NAME ${SUB_TARGET}-${_MACOS_ARCH})							# app_macos-x86_64
