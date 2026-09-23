@@ -66,3 +66,5 @@ linphone62*.log
 # GitHub Actions workflows
 !.github/
 !.github/**
+# Python bytecode cache
+**/__pycache__/
