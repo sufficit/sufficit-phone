@@ -35,12 +35,12 @@
 #include "model/cli/CliModel.hpp"
 #include "model/core/CoreModel.hpp"
 #include "tool/AbstractObject.hpp"
+#include "tool/update/AppUpdater.hpp"
 
 class CallGui;
 class ChatGui;
 class Thread;
 class Notifier;
-class AppUpdater;
 class QQuickWindow;
 class QSystemTrayIcon;
 class DefaultTranslatorCore;

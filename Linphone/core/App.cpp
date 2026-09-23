@@ -116,7 +116,6 @@
 #include "tool/thread/Thread.hpp"
 #include "tool/ui/DashRectangle.hpp"
 #include "tool/ui/FocusNavigator.hpp"
-#include "tool/update/AppUpdater.hpp"
 
 #if defined(Q_OS_MACOS)
 #include "core/event-count-notifier/EventCountNotifierMacOs.hpp"
