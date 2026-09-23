@@ -66,6 +66,8 @@ public:
 	static constexpr int DefaultExpires = 600;
 	static constexpr int DefaultPublishExpires = 120;
 	static constexpr char DownloadUrl[] = "https://www.linphone.org/technical-corner/linphone";
+	// GitHub repository feeding the internal updater (releases + SHA256SUMS).
+	static constexpr char UpdateRepo[] = "sufficit/sufficit-phone";
 	static constexpr char VersionCheckReleaseUrl[] = "https://download.linphone.org/releases";
 	static constexpr char VersionCheckNightlyUrl[] = "https://download.linphone.org/snapshots";
 	static constexpr char PasswordRecoveryUrl[] = "https://subscribe.linphone.org/recovery/email";

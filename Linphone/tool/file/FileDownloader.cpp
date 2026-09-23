@@ -71,6 +71,10 @@ void FileDownloader::download() {
 	setDownloading(true);
 
 	QNetworkRequest request(mUrl);
+	// Release assets are served through GitHub's HTTPS redirect to object storage.
+	// Following only same-or-more-secure redirects keeps downloads working without
+	// weakening TLS security.
+	request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 	mNetworkReply = mManager.get(request);
 
 	QNetworkReply *data = mNetworkReply.data();

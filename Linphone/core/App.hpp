@@ -40,6 +40,7 @@ class CallGui;
 class ChatGui;
 class Thread;
 class Notifier;
+class AppUpdater;
 class QQuickWindow;
 class QSystemTrayIcon;
 class DefaultTranslatorCore;
@@ -59,6 +60,7 @@ class App : public SingleApplication, public AbstractObject {
 	Q_PROPERTY(QString sdkVersion READ getSdkVersion CONSTANT)
 	Q_PROPERTY(ChatGui *currentChat READ getCurrentChat WRITE setCurrentChat NOTIFY currentChatChanged)
 	Q_PROPERTY(QString localeAsString READ getLocaleAsString CONSTANT)
+	Q_PROPERTY(AppUpdater *updater READ getUpdater CONSTANT)
 	Q_PROPERTY(int remainingTimeBeforeOidcTimeout MEMBER mRemainingTimeBeforeOidcTimeout NOTIFY
 	               remainingTimeBeforeOidcTimeoutChanged)
 
@@ -194,6 +196,9 @@ public:
 	                               const std::shared_ptr<linphone::AuthInfo> &authInfo,
 	                               linphone::AuthMethod method);
 
+	AppUpdater *getUpdater() const {
+		return mAppUpdater;
+	}
 	QString getShortApplicationVersion();
 	QString getGitBranchName();
 	QString getSdkVersion();
@@ -202,7 +207,11 @@ public:
 	NotificationBackend *getNotificationBackend() const;
 #endif
 
-	Q_INVOKABLE void checkForUpdate(bool requestedByUser = false);
+	Q_INVOKABLE void checkForUpdate(bool requestedByUser = false); // legacy Linphone updater
+	Q_INVOKABLE void checkInternalForUpdate(bool requestedByUser = false);
+	Q_INVOKABLE void downloadInternalUpdate();
+	Q_INVOKABLE void installInternalUpdate();
+	Q_INVOKABLE void cancelInternalUpdateDownload();
 
 	float getScreenRatio() const;
 	Q_INVOKABLE void setScreenRatio(float ratio);
@@ -253,6 +262,8 @@ private:
 	void setMacOSDockActions(); // Should only be called on MacOS
 	void setAutoStart(bool enabled);
 	void setLocale(QString configLocale);
+	void showUpdateDialog(const QString &version, qint64 sizeBytes, bool userInitiated);
+	void showInstallDialog(const QString &version, bool userInitiated);
 
 	QCommandLineParser *mParser = nullptr;
 	Thread *mLinphoneThread = nullptr;
@@ -279,6 +290,8 @@ private:
 	QSharedPointer<CallHistoryList> mCallHistoryList;
 	QSharedPointer<SafeConnection<App, CoreModel>> mCoreModelConnection;
 	QSharedPointer<SafeConnection<App, CliModel>> mCliModelConnection;
+	AppUpdater *mAppUpdater = nullptr;
+	bool mUpdateDialogShown = false;
 	bool mAutoStart = false;
 	bool mCoreStarted = false;
 	bool mIsRestarting = false;

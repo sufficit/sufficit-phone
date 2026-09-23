@@ -631,6 +631,41 @@
 <context>
     <name>App</name>
     <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_applied_title</source>
+        <translation>Atualização aplicada</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_applied_message</source>
+        <translation>A atualização substituiu o AppImage no disco. Feche e abra o Sufficit Phone novamente para usar a nova versão.</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_manual_install_message</source>
+        <translation>A atualização foi aberta fora do aplicativo (instalador ou página de download). Siga as instruções do sistema para concluir a instalação.</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_available_title</source>
+        <translation>Nova versão disponível</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_available_message</source>
+        <translation>O Sufficit Phone %1 está disponível. Baixar e instalar agora?</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_ready_title</source>
+        <translation>Atualização pronta para instalar</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_ready_message</source>
+        <translation>A versão %1 foi baixada e verificada. Instalar agora? O aplicativo será fechado para aplicar a atualização.</translation>
+    </message>
+    <message>
         <location filename="../../core/App.cpp" line="356"/>
         <source>remote_provisioning_dialog</source>
         <extracomment>Voulez-vous télécharger et appliquer la configuration depuis cette adresse ?</extracomment>
@@ -3724,6 +3759,41 @@ Apenas seu correspondente pode descriptografá-las.</translation>
 </context>
 <context>
     <name>HelpPage</name>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_checking</source>
+        <translation>Verificando atualizações…</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_downloading</source>
+        <translation>Baixando %1…</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_downloaded</source>
+        <translation>%1 baixado — pronto para instalar</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_available_label</source>
+        <translation>Versão %1 disponível</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_download_button</source>
+        <translation>Baixar</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_cancel_button</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_install_button</source>
+        <translation>Instalar e reiniciar</translation>
+    </message>
     <message>
         <location filename="../../view/Page/Main/Help/HelpPage.qml" line="40"/>
         <source>help_title</source>
@@ -7452,6 +7522,29 @@ Failed to create 1-1 conversation with %1 !</extracomment>
         <location filename="../../model/core/CoreModel.cpp" line="220"/>
         <source>info_popup_error_title</source>
         <translation>Erro</translation>
+    </message>
+</context>
+<context>
+    <name>AppUpdater</name>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_network</source>
+        <translation>Não foi possível verificar atualizações. Confira sua conexão e tente novamente.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_download</source>
+        <translation>A atualização não pôde ser baixada ou verificada. Tente novamente mais tarde.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_sums_missing</source>
+        <translation>O manifesto de checksums desta versão está indisponível. Por segurança, a atualização não foi instalada.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_install</source>
+        <translation>A atualização não pôde ser instalada.</translation>
     </message>
 </context>
 </TS>

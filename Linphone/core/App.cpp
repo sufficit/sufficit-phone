@@ -116,6 +116,7 @@
 #include "tool/thread/Thread.hpp"
 #include "tool/ui/DashRectangle.hpp"
 #include "tool/ui/FocusNavigator.hpp"
+#include "tool/update/AppUpdater.hpp"
 
 #if defined(Q_OS_MACOS)
 #include "core/event-count-notifier/EventCountNotifierMacOs.hpp"
@@ -343,6 +344,35 @@ App::App(int &argc, char *argv[])
 	});
 	mEventCountNotifier = new EventCountNotifier(this);
 	mDateUpdateTimer.start();
+
+	// Internal update system (GitHub releases feed + SHA256SUMS verification).
+	mAppUpdater = new AppUpdater(this);
+	connect(mAppUpdater, &AppUpdater::updateAvailable, this,
+	        [this](const QString &version, qint64 sizeBytes, bool userInitiated) {
+		        showUpdateDialog(version, sizeBytes, userInitiated);
+	        });
+	connect(mAppUpdater, &AppUpdater::readyToInstall, this,
+	        [this](const QString &version, bool userInitiated) { showInstallDialog(version, userInitiated); });
+	connect(mAppUpdater, &AppUpdater::upToDate, this, [this](bool requestedByUser) {
+		if (!requestedByUser) return;
+		//: Up to date
+		Utils::showInformationPopup(tr("info_popup_version_up_to_date_title"),
+		                            //: Your version is up to date
+		                            tr("info_popup_version_up_to_date_message"));
+	});
+	connect(mAppUpdater, &AppUpdater::updateError, this, [this](const QString &message, bool userInitiated) {
+		if (!userInitiated) return;
+		//: Error
+		Utils::showInformationPopup(tr("info_popup_error_title"), message, false);
+	});
+	connect(mAppUpdater, &AppUpdater::manualInstallOpened, this,
+	        [this] { Utils::showInformationPopup(tr("update_ready_title"), tr("update_manual_install_message")); });
+	connect(mAppUpdater, &AppUpdater::installFinished, this, [this] {
+		// AppImage flow: the new image is already in place on disk, but the
+		// running process still executes the old one (App::restart only rebuilds
+		// the engine in-process). Tell the user; the next launch picks it up.
+		Utils::showInformationPopup(tr("update_applied_title"), tr("update_applied_message"));
+	});
 
 	mOIDCRefreshTimer.setInterval(1000);
 	mOIDCRefreshTimer.setSingleShot(false);
@@ -1049,6 +1079,7 @@ void App::initCppInterfaces() {
 
 	qmlRegisterUncreatableType<RequestDialog>(Constants::MainQmlUri, 1, 0, "RequestDialog",
 	                                          QLatin1String("Uncreatable"));
+	qmlRegisterUncreatableType<AppUpdater>(Constants::MainQmlUri, 1, 0, "AppUpdater", QLatin1String("Uncreatable"));
 	qmlRegisterType<LdapGui>(Constants::MainQmlUri, 1, 0, "LdapGui");
 	qmlRegisterType<LdapProxy>(Constants::MainQmlUri, 1, 0, "LdapProxy");
 	qmlRegisterType<CarddavGui>(Constants::MainQmlUri, 1, 0, "CarddavGui");
@@ -1799,8 +1830,75 @@ QString App::getQtVersion() const {
 	return qVersion();
 }
 
+void App::checkInternalForUpdate(bool requestedByUser) {
+	mustBeInMainThread(log().arg(Q_FUNC_INFO));
+	if (mAppUpdater) mAppUpdater->checkForUpdate(requestedByUser);
+}
+
+void App::downloadInternalUpdate() {
+	mustBeInMainThread(log().arg(Q_FUNC_INFO));
+	if (mAppUpdater) mAppUpdater->downloadUpdate();
+}
+
+void App::installInternalUpdate() {
+	mustBeInMainThread(log().arg(Q_FUNC_INFO));
+	if (mAppUpdater) mAppUpdater->installUpdate();
+}
+
+void App::cancelInternalUpdateDownload() {
+	mustBeInMainThread(log().arg(Q_FUNC_INFO));
+	if (mAppUpdater) mAppUpdater->cancelDownload();
+}
+
+void App::showUpdateDialog(const QString &version, qint64 sizeBytes, bool userInitiated) {
+	Q_UNUSED(sizeBytes);
+	if (!mMainWindow) {
+		connect(
+		    this, &App::mainWindowChanged, this,
+		    [this, version, userInitiated] { showUpdateDialog(version, 0, userInitiated); }, Qt::SingleShotConnection);
+		return;
+	}
+	if (!userInitiated || mUpdateDialogShown) return;
+	mUpdateDialogShown = true;
+	RequestDialog *obj = new RequestDialog(tr("update_available_title"), tr("update_available_message").arg(version));
+	connect(obj, &RequestDialog::result, this, [this, obj](int result) {
+		obj->deleteLater();
+		mUpdateDialogShown = false;
+		if (result == 1 && mAppUpdater) mAppUpdater->downloadUpdate();
+	});
+	QMetaObject::invokeMethod(mMainWindow, "showConfirmationPopup", QVariant::fromValue(obj));
+}
+
+void App::showInstallDialog(const QString &version, bool userInitiated) {
+	if (!mMainWindow) {
+		// Defer the offer until the main window exists; installation still needs
+		// a fresh explicit user action in the confirmation dialog.
+		connect(
+		    this, &App::mainWindowChanged, this, [this, version] { showInstallDialog(version, true); },
+		    Qt::SingleShotConnection);
+		return;
+	}
+	Q_UNUSED(userInitiated);
+	if (mUpdateDialogShown) return;
+	mUpdateDialogShown = true;
+	RequestDialog *obj = new RequestDialog(tr("update_ready_title"), tr("update_ready_message").arg(version));
+	connect(obj, &RequestDialog::result, this, [this, obj](int result) {
+		obj->deleteLater();
+		mUpdateDialogShown = false;
+		if (result == 1 && mAppUpdater) mAppUpdater->installUpdate();
+	});
+	QMetaObject::invokeMethod(mMainWindow, "showConfirmationPopup", QVariant::fromValue(obj));
+}
+
 void App::checkForUpdate(bool requestedByUser) {
 	mustBeInMainThread(log().arg(Q_FUNC_INFO));
+	// The Sufficit release channel lives on GitHub releases, not on the Linphone
+	// update feed: route every check (UI button and startup auto-check) through
+	// the internal updater.
+	if (mAppUpdater) {
+		mAppUpdater->checkForUpdate(requestedByUser);
+		return;
+	}
 	if (CoreModel::getInstance() && mCoreModelConnection) {
 		mCoreModelConnection->invokeToModel([this, requestedByUser] {
 			mustBeInLinphoneThread(log().arg(Q_FUNC_INFO));

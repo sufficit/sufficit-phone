@@ -686,6 +686,41 @@
 <context>
     <name>App</name>
     <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_applied_title</source>
+        <translation>Update angewendet</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_applied_message</source>
+        <translation>Das Update hat das AppImage auf dem Datenträger ersetzt. Schließen und starten Sie Sufficit Phone erneut, um die neue Version zu verwenden.</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_manual_install_message</source>
+        <translation>Das Update wurde außerhalb der Anwendung geöffnet (Installer oder Downloadseite). Folgen Sie den Systemanweisungen, um die Installation abzuschließen.</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_available_title</source>
+        <translation>Neue Version verfügbar</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_available_message</source>
+        <translation>Sufficit Phone %1 ist verfügbar. Jetzt herunterladen und installieren?</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_ready_title</source>
+        <translation>Update bereit zur Installation</translation>
+    </message>
+    <message>
+        <location filename="../../core/App.cpp" line="0"/>
+        <source>update_ready_message</source>
+        <translation>Version %1 wurde heruntergeladen und geprüft. Jetzt installieren? Die Anwendung wird geschlossen, um das Update anzuwenden.</translation>
+    </message>
+    <message>
         <location filename="../../core/App.cpp" line="381"/>
         <source>remote_provisioning_dialog</source>
         <extracomment>Voulez-vous télécharger et appliquer la configuration depuis cette adresse ?</extracomment>
@@ -4208,6 +4243,41 @@ Error</extracomment>
 </context>
 <context>
     <name>HelpPage</name>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_checking</source>
+        <translation>Suche nach Updates…</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_downloading</source>
+        <translation>%1 wird heruntergeladen…</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_downloaded</source>
+        <translation>%1 heruntergeladen – bereit zur Installation</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_available_label</source>
+        <translation>Version %1 verfügbar</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_download_button</source>
+        <translation>Herunterladen</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_cancel_button</source>
+        <translation>Abbrechen</translation>
+    </message>
+    <message>
+        <location filename="../../view/Page/Main/Help/HelpPage.qml" line="0"/>
+        <source>update_install_button</source>
+        <translation>Installieren und neu starten</translation>
+    </message>
     <message>
         <location filename="../../view/Page/Main/Help/HelpPage.qml" line="43"/>
         <source>help_title</source>
@@ -8314,6 +8384,29 @@ Error in the chat</extracomment>
         <location filename="../../view/Control/Tool/Helper/utils.js" line="805"/>
         <source>okButton</source>
         <translation>Ok</translation>
+    </message>
+</context>
+<context>
+    <name>AppUpdater</name>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_network</source>
+        <translation>Updates konnten nicht gesucht werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_download</source>
+        <translation>Das Update konnte nicht heruntergeladen oder geprüft werden. Bitte versuchen Sie es später erneut.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_sums_missing</source>
+        <translation>Die Prüfsummen-Liste dieser Version ist nicht verfügbar. Aus Sicherheitsgründen wurde das Update nicht installiert.</translation>
+    </message>
+    <message>
+        <location filename="../../tool/update/AppUpdater.cpp" line="0"/>
+        <source>update_error_install</source>
+        <translation>Das Update konnte nicht installiert werden.</translation>
     </message>
 </context>
 </TS>
