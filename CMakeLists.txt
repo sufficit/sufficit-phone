@@ -58,6 +58,24 @@ endif()
 
 project(linphoneqt)
 
+# QtKeychain's macOS backend is Objective-C++ (external/qtkeychain/qtkeychain/
+# keychain_apple.mm). Declare the language here, immediately after project()
+# and before any add_subdirectory(): the per-architecture macOS build
+# (cmake/TasksMacos.cmake) reconfigures this very same CMakeLists.txt with a
+# custom toolchain file that sets only CMAKE_C_COMPILER/CMAKE_CXX_COMPILER.
+# Enabling OBJCXX lazily, for the first time, deep inside a nested
+# add_subdirectory() hits a known Ninja-generator limitation where
+# CMAKE_OBJCXX_COMPILE_OBJECT never gets populated even though the compiler
+# itself is detected correctly - CMake's own docs say a language must be
+# enabled "in the highest directory common to all targets using" it,
+# precisely to avoid this. Declaring it this early sidesteps the bug entirely
+# and matches how this codebase already enables OBJC/OBJCXX for its other
+# .mm files (transitively, via the linphone-sdk external project, itself a
+# top-level project() call) before Linphone/tool/CMakeLists.txt needs it.
+if(APPLE)
+	enable_language(OBJCXX)
+endif()
+
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 
@@ -219,10 +237,6 @@ if(NOT Qt6_FOUND)
 	message(FATAL_ERROR "Minimum supported Qt6!")
 endif()
 
-# Build QtKeychain in every configure mode, including LINPHONE_QT_ONLY: the
-# persistent Sufficit session depends on an OS credential store at runtime.
-add_subdirectory(external/qtkeychain)
-
 set(LINPHONEAPP_BUILD_TYPE "Default" CACHE STRING "Type of build")
 set_property(CACHE LINPHONEAPP_BUILD_TYPE PROPERTY STRINGS "Default" "Macos" "Normal")
 
@@ -237,6 +251,9 @@ endif()
 
 
 if(NOT APPLE OR MONO_ARCH)
+	# This process builds the actual app target directly (including the
+	# LINPHONE_QT_ONLY configure path), so create QtKeychain in this configure.
+	add_subdirectory(external/qtkeychain)
 	if(NOT LINPHONE_QT_ONLY)
 		function(add_external)
 			set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # Prevent project from overriding the options we just set here
@@ -277,6 +294,13 @@ if(NOT APPLE OR MONO_ARCH)
 	endif()
 	include (cmake/install/install.cmake)
 else()
+    # This is the macOS orchestration configure (no MONO_ARCH yet): it builds
+    # no target of its own. TasksMacos.cmake only creates custom targets that
+    # re-invoke cmake once per architecture with -DMONO_ARCH=<arch> and a
+    # per-arch toolchain file; that re-invocation re-runs this very file from
+    # project() onward, taking the "if(NOT APPLE OR MONO_ARCH)" branch above -
+    # where OBJCXX (enabled near the top of this file) is already in scope
+    # when external/qtkeychain and Linphone/tool are added.
     include(cmake/TasksMacos.cmake)
 endif()
 
