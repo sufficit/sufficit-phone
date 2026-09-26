@@ -165,7 +165,6 @@ add_option(OPTION_LIST ENABLE_FFMPEG "Build mediastreamer2 with ffmpeg video sup
 add_option(OPTION_LIST ENABLE_LDAP "Enable LDAP support." YES)
 add_option(OPTION_LIST ENABLE_NON_FREE_CODECS "Enable the use of non free codecs" YES)
 add_option(OPTION_LIST ENABLE_NON_FREE_FEATURES "Enable the use of non free codecs" ${ENABLE_NON_FREE_CODECS})
-add_option(OPTION_LIST ENABLE_QT_KEYCHAIN "Build QtKeychain to manage VFS from System key stores." OFF)
 add_option(OPTION_LIST ENABLE_QRCODE "Enable QRCode support" OFF)#Experimental
 add_option(OPTION_LIST ENABLE_RELATIVE_PREFIX "Set Internal packages relative to the binary" ON)
 add_option(OPTION_LIST ENABLE_SANITIZER "Enable sanitizer." OFF)
@@ -192,13 +191,11 @@ add_cache(OPTION_LIST BUGSPLAT_DATABASE "Database name for Bugsplat." "Linphone"
 
 
 
-# QtKeychain
-add_option(OPTION_LIST LIBSECRET_SUPPORT "Build with libsecret support" OFF) # Need libsecret-devel
-if(WIN32)
-	add_cache(OPTION_LIST QTKEYCHAIN_TARGET_NAME "Override Qt6Keychain library name for a workaround with windeployqt" "EQt6Keychain")
-else()
-	add_cache(OPTION_LIST QTKEYCHAIN_TARGET_NAME "Override Qt6Keychain library name" "Qt6Keychain")
-endif()
+# QtKeychain is vendored under external/qtkeychain and built unconditionally
+# (see the add_subdirectory call below); it needs no option of its own
+# anymore. cmake/Modules/FindQtKeychain.cmake and the QTKEYCHAIN_OUTPUT_DIR
+# variable above are leftovers from an import path that was never wired in -
+# left alone since nothing references them.
 if(WIN32)
 	add_option(OPTION_LIST ENABLE_OPENSSL_EXPORT "Enable OpenSSL deployment" YES)
 elseif(APPLE)
@@ -221,6 +218,10 @@ find_package(Qt6 REQUIRED COMPONENTS Core Quick Widgets)
 if(NOT Qt6_FOUND)
 	message(FATAL_ERROR "Minimum supported Qt6!")
 endif()
+
+# Build QtKeychain in every configure mode, including LINPHONE_QT_ONLY: the
+# persistent Sufficit session depends on an OS credential store at runtime.
+add_subdirectory(external/qtkeychain)
 
 set(LINPHONEAPP_BUILD_TYPE "Default" CACHE STRING "Type of build")
 set_property(CACHE LINPHONEAPP_BUILD_TYPE PROPERTY STRINGS "Default" "Macos" "Normal")
