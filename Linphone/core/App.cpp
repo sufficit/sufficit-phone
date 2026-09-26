@@ -320,6 +320,12 @@ App::App(int &argc, char *argv[])
 
 	mLinphoneThread = new Thread(this);
 
+	// Keep the OAuth session object alive independently of QML engine reloads.
+	mSufficitOAuth = new SufficitOAuth(this);
+	connect(this, &App::coreStartedChanged, this, [this](bool started) {
+		if (started) mSufficitOAuth->resumeSession();
+	});
+
 	init();
 	lInfo() << QStringLiteral("Starting application %1 %2 %3 %4")
 	               .arg(APPLICATION_NAME)
@@ -998,9 +1004,14 @@ void App::initCppInterfaces() {
 	    [](QQmlEngine *engine, QJSEngine *) -> QObject * { return new Constants(engine); });
 	qmlRegisterSingletonType<Utils>("UtilsCpp", 1, 0, "UtilsCpp",
 	                                [](QQmlEngine *engine, QJSEngine *) -> QObject * { return new Utils(engine); });
-	qmlRegisterSingletonType<SufficitOAuth>(
-	    "SufficitOAuthCpp", 1, 0, "SufficitOAuthCpp",
-	    [](QQmlEngine *engine, QJSEngine *) -> QObject * { return new SufficitOAuth(engine); });
+	qmlRegisterSingletonType<SufficitOAuth>("SufficitOAuthCpp", 1, 0, "SufficitOAuthCpp",
+	                                        [](QQmlEngine *engine, QJSEngine *) -> QObject * {
+		                                        // Owned by App, not by the engine: the session must survive
+		                                        // engine reloads and starts resuming before any QML page exists.
+		                                        auto *oauth = App::getInstance()->getSufficitOAuth();
+		                                        engine->setObjectOwnership(oauth, QQmlEngine::CppOwnership);
+		                                        return oauth;
+	                                        });
 	qmlRegisterSingletonType<DesktopTools>(
 	    "DesktopToolsCpp", 1, 0, "DesktopToolsCpp",
 	    [](QQmlEngine *engine, QJSEngine *) -> QObject * { return new DesktopTools(engine); });

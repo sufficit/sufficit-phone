@@ -66,9 +66,11 @@ LoginLayout {
                     Layout.preferredWidth: Utils.getSizeWithScreenRatio(361)
                     Layout.preferredHeight: Utils.getSizeWithScreenRatio(47)
 					visible: !SufficitOAuthCpp.waitingForRamal
-					enabled: !SufficitOAuthCpp.loggingIn
+					enabled: !SufficitOAuthCpp.loggingIn && !SufficitOAuthCpp.resuming
                     //: Button shown while the Sufficit authentication is in progress.
-                    text: SufficitOAuthCpp.loggingIn ? qsTr("Signing in...") : qsTr("Sign in with Sufficit")
+                    //: Button shown while the saved Sufficit session is being restored.
+                    text: SufficitOAuthCpp.loggingIn ? qsTr("Signing in...")
+                        : (SufficitOAuthCpp.resuming ? qsTr("Restoring session...") : qsTr("Sign in with Sufficit"))
 					style: ButtonStyle.main
 					onClicked: {SufficitOAuthCpp.login()}
 					Accessible.name: text

@@ -228,6 +228,9 @@ foreach(T ${QT_PACKAGES})
 	target_link_libraries(${TARGET_NAME} PRIVATE Qt6::${T})
 endforeach()
 
+# OS keychain for the persistent Sufficit session (see external/qtkeychain).
+target_link_libraries(${TARGET_NAME} PRIVATE qt6keychain)
+
 if (WIN32)
 	target_link_libraries(${TARGET_NAME} PRIVATE runtimeobject)
 	target_link_libraries(${TARGET_NAME} PRIVATE shlwapi propsys shell32)
