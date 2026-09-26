@@ -19,10 +19,9 @@ if(WIN32)
     list(APPEND QTKEYCHAIN_PRIVATE_DEFINITIONS USE_CREDENTIAL_STORE UNICODE)
     list(APPEND QTKEYCHAIN_LIBRARIES crypt32)
 elseif(APPLE)
-    # The top-level project enables only C/CXX; the macOS per-architecture
-    # build reconfigures this project with a separate toolchain. Enable OBJCXX
-    # here so both the main build and that child configure select clang++ and
-    # populate CMAKE_OBJCXX_COMPILE_OBJECT.
+    # The app's top-level project enables OBJCXX before adding this directory.
+    # Keep the local enable_language() so QtKeychain also works when configured
+    # standalone or from a different parent project.
     enable_language(OBJCXX)
     list(APPEND QTKEYCHAIN_SOURCES qtkeychain/keychain_apple.mm)
     list(APPEND QTKEYCHAIN_LIBRARIES "-framework Foundation" "-framework Security")
