@@ -4100,6 +4100,10 @@ Apenas seu correspondente pode descriptografá-las.</translation>
         <translation>Entrar com a Sufficit</translation>
     </message>
     <message>
+        <source>Restoring session...</source>
+        <translation>Restaurando sessão...</translation>
+    </message>
+    <message>
         <source>Sign-in complete</source>
         <translation>Login concluído</translation>
     </message>

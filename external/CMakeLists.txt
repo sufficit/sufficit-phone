@@ -1,7 +1,6 @@
 
 add_subdirectory(linphone-sdk/)
-if(ENABLE_QT_KEYCHAIN)
-    find_package(Qt6 REQUIRED COMPONENTS Test)
-    add_subdirectory(qtkeychain/)
-endif()
+# QtKeychain is added unconditionally from the root CMakeLists.txt: it is
+# needed in every configure mode, including LINPHONE_QT_ONLY, because the
+# persistent session depends on it.
 add_subdirectory(google)

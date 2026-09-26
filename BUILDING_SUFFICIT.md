@@ -29,7 +29,7 @@ sudo apt-get install -y \
   libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavdevice-dev \
   libx11-dev libxext-dev libxrandr-dev libgl1-mesa-dev libgtk-3-dev \
   libglew-dev libxcb-cursor0 \
-  libldap-dev \
+  libldap-dev libsecret-1-dev \
   zlib1g-dev libbz2-dev libreadline-dev libncurses-dev libspeex-dev libspeexdsp-dev \
   autoconf automake libtool intltool
 

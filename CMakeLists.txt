@@ -58,6 +58,24 @@ endif()
 
 project(linphoneqt)
 
+# QtKeychain's macOS backend is Objective-C++ (external/qtkeychain/qtkeychain/
+# keychain_apple.mm). Declare the language here, immediately after project()
+# and before any add_subdirectory(): the per-architecture macOS build
+# (cmake/TasksMacos.cmake) reconfigures this very same CMakeLists.txt with a
+# custom toolchain file that sets only CMAKE_C_COMPILER/CMAKE_CXX_COMPILER.
+# Enabling OBJCXX lazily, for the first time, deep inside a nested
+# add_subdirectory() hits a known Ninja-generator limitation where
+# CMAKE_OBJCXX_COMPILE_OBJECT never gets populated even though the compiler
+# itself is detected correctly - CMake's own docs say a language must be
+# enabled "in the highest directory common to all targets using" it,
+# precisely to avoid this. Declaring it this early sidesteps the bug entirely
+# and matches how this codebase already enables OBJC/OBJCXX for its other
+# .mm files (transitively, via the linphone-sdk external project, itself a
+# top-level project() call) before Linphone/tool/CMakeLists.txt needs it.
+if(APPLE)
+	enable_language(OBJCXX)
+endif()
+
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 
@@ -165,7 +183,6 @@ add_option(OPTION_LIST ENABLE_FFMPEG "Build mediastreamer2 with ffmpeg video sup
 add_option(OPTION_LIST ENABLE_LDAP "Enable LDAP support." YES)
 add_option(OPTION_LIST ENABLE_NON_FREE_CODECS "Enable the use of non free codecs" YES)
 add_option(OPTION_LIST ENABLE_NON_FREE_FEATURES "Enable the use of non free codecs" ${ENABLE_NON_FREE_CODECS})
-add_option(OPTION_LIST ENABLE_QT_KEYCHAIN "Build QtKeychain to manage VFS from System key stores." OFF)
 add_option(OPTION_LIST ENABLE_QRCODE "Enable QRCode support" OFF)#Experimental
 add_option(OPTION_LIST ENABLE_RELATIVE_PREFIX "Set Internal packages relative to the binary" ON)
 add_option(OPTION_LIST ENABLE_SANITIZER "Enable sanitizer." OFF)
@@ -192,13 +209,11 @@ add_cache(OPTION_LIST BUGSPLAT_DATABASE "Database name for Bugsplat." "Linphone"
 
 
 
-# QtKeychain
-add_option(OPTION_LIST LIBSECRET_SUPPORT "Build with libsecret support" OFF) # Need libsecret-devel
-if(WIN32)
-	add_cache(OPTION_LIST QTKEYCHAIN_TARGET_NAME "Override Qt6Keychain library name for a workaround with windeployqt" "EQt6Keychain")
-else()
-	add_cache(OPTION_LIST QTKEYCHAIN_TARGET_NAME "Override Qt6Keychain library name" "Qt6Keychain")
-endif()
+# QtKeychain is vendored under external/qtkeychain and built unconditionally
+# (see the add_subdirectory call below); it needs no option of its own
+# anymore. cmake/Modules/FindQtKeychain.cmake and the QTKEYCHAIN_OUTPUT_DIR
+# variable above are leftovers from an import path that was never wired in -
+# left alone since nothing references them.
 if(WIN32)
 	add_option(OPTION_LIST ENABLE_OPENSSL_EXPORT "Enable OpenSSL deployment" YES)
 elseif(APPLE)
@@ -236,6 +251,9 @@ endif()
 
 
 if(NOT APPLE OR MONO_ARCH)
+	# This process builds the actual app target directly (including the
+	# LINPHONE_QT_ONLY configure path), so create QtKeychain in this configure.
+	add_subdirectory(external/qtkeychain)
 	if(NOT LINPHONE_QT_ONLY)
 		function(add_external)
 			set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # Prevent project from overriding the options we just set here
@@ -276,6 +294,13 @@ if(NOT APPLE OR MONO_ARCH)
 	endif()
 	include (cmake/install/install.cmake)
 else()
+    # This is the macOS orchestration configure (no MONO_ARCH yet): it builds
+    # no target of its own. TasksMacos.cmake only creates custom targets that
+    # re-invoke cmake once per architecture with -DMONO_ARCH=<arch> and a
+    # per-arch toolchain file; that re-invocation re-runs this very file from
+    # project() onward, taking the "if(NOT APPLE OR MONO_ARCH)" branch above -
+    # where OBJCXX (enabled near the top of this file) is already in scope
+    # when external/qtkeychain and Linphone/tool are added.
     include(cmake/TasksMacos.cmake)
 endif()
 

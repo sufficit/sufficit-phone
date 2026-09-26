@@ -44,6 +44,7 @@ class Notifier;
 class QQuickWindow;
 class QSystemTrayIcon;
 class DefaultTranslatorCore;
+class SufficitOAuth;
 #if defined(Q_OS_WIN) || defined(Q_OS_LINUX)
 class NotificationBackend;
 #endif
@@ -199,6 +200,9 @@ public:
 	AppUpdater *getUpdater() const {
 		return mAppUpdater;
 	}
+	SufficitOAuth *getSufficitOAuth() const {
+		return mSufficitOAuth;
+	}
 	QString getShortApplicationVersion();
 	QString getGitBranchName();
 	QString getSdkVersion();
@@ -291,6 +295,7 @@ private:
 	QSharedPointer<SafeConnection<App, CoreModel>> mCoreModelConnection;
 	QSharedPointer<SafeConnection<App, CliModel>> mCliModelConnection;
 	AppUpdater *mAppUpdater = nullptr;
+	SufficitOAuth *mSufficitOAuth = nullptr;
 	bool mUpdateDialogShown = false;
 	bool mAutoStart = false;
 	bool mCoreStarted = false;

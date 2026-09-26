@@ -59,6 +59,7 @@ jobs:
             libx11-dev libxext-dev libxrandr-dev libgl1-mesa-dev libgtk-3-dev \
             libglew-dev libxcb-cursor0 \
             libldap-dev \
+            libsecret-1-dev \
             zlib1g-dev libbz2-dev libreadline-dev libncurses-dev libspeex-dev libspeexdsp-dev \
             autoconf automake libtool intltool
           python3 -m pip install --user pystache cython pdoc six
