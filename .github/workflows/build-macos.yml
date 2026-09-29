@@ -47,6 +47,58 @@ jobs:
           test -f external/linphone-sdk/CMakeLists.txt
           echo "Submódulos restaurados (offline)."
 
+      - name: Patch macOS OpenGL pixel-format terminator
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_file=external/linphone-sdk/mediastreamer2/src/videofilters/msosxdisplay.m
+          test -f "$source_file"
+          # The bundled SDK stores CGL pixel-format tokens in a typed enum;
+          # Apple Clang rejects the legacy integer literal used as terminator.
+          python3 - "$source_file" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          source = path.read_text()
+          old = "\t\t\tkCGLPFADoubleBuffer,\n\t\t\t0\n"
+          new = "\t\t\tkCGLPFADoubleBuffer,\n\t\t\t(CGLPixelFormatAttribute)0\n"
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f"Expected exactly one pixel-format terminator in {path}; found {count}")
+          path.write_text(source.replace(old, new, 1))
+          PY
+          grep -n -A6 'CGLPixelFormatAttribute attributes' "$source_file"
+
+      - name: Patch macOS capture pointer and enum types
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_file=external/linphone-sdk/mediastreamer2/src/videofilters/avfound-capture.m
+          test -f "$source_file"
+          # Keep the vendored SDK snapshot unchanged while adapting two strict
+          # Apple Clang diagnostics in its Objective-C capture implementation.
+          python3 - "$source_file" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          source = path.read_text()
+          replacements = {
+              "uint8_t *src_plane = CVPixelBufferGetBaseAddressOfPlane(frame, p);":
+                  "uint8_t *src_plane = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(frame, p);",
+              "- (int)getPixFmt;": "- (MSPixFmt)getPixFmt;",
+              "- (int)getPixFmt {": "- (MSPixFmt)getPixFmt {",
+          }
+          for old, new in replacements.items():
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one {old!r} in {path}; found {count}")
+              source = source.replace(old, new, 1)
+          path.write_text(source)
+          PY
+          grep -n -E 'src_plane =|getPixFmt' "$source_file"
+
       - name: Install build dependencies
         run: |
           brew install doxygen graphviz nasm yasm meson ninja

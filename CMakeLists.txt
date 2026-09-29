@@ -58,21 +58,17 @@ endif()
 
 project(linphoneqt)
 
-# QtKeychain's macOS backend is Objective-C++ (external/qtkeychain/qtkeychain/
-# keychain_apple.mm). Declare the language here, immediately after project()
-# and before any add_subdirectory(): the per-architecture macOS build
-# (cmake/TasksMacos.cmake) reconfigures this very same CMakeLists.txt with a
-# custom toolchain file that sets only CMAKE_C_COMPILER/CMAKE_CXX_COMPILER.
-# Enabling OBJCXX lazily, for the first time, deep inside a nested
-# add_subdirectory() hits a known Ninja-generator limitation where
-# CMAKE_OBJCXX_COMPILE_OBJECT never gets populated even though the compiler
-# itself is detected correctly - CMake's own docs say a language must be
-# enabled "in the highest directory common to all targets using" it,
-# precisely to avoid this. Declaring it this early sidesteps the bug entirely
-# and matches how this codebase already enables OBJC/OBJCXX for its other
-# .mm files (transitively, via the linphone-sdk external project, itself a
-# top-level project() call) before Linphone/tool/CMakeLists.txt needs it.
+# Declare both Objective-C languages here, immediately after project() and
+# before any add_subdirectory(): the per-architecture macOS build
+# (cmake/TasksMacos.cmake) reconfigures this same file with a custom toolchain
+# that sets only CMAKE_C_COMPILER/CMAKE_CXX_COMPILER. Enabling OBJCXX lazily in
+# a nested directory hits a Ninja limitation where its compile rule may remain
+# unset. Enabling OBJCXX here also ensures the QtKeychain .mm backend is
+# supported. OBJC must be enabled separately: otherwise CMake compiles SDK .m
+# files as Objective-C++, C++-mangling C functions such as getPluginsDir that
+# are called from C (observed as an undefined _getPluginsDir at link time).
 if(APPLE)
+	enable_language(OBJC)
 	enable_language(OBJCXX)
 endif()
 
