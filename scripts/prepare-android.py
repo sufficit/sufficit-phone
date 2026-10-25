@@ -5,8 +5,8 @@ import subprocess
 import re
 import shutil
 
-VERSION_NAME = '0.2.0-pilot'
-VERSION_CODE = 2
+VERSION_NAME = '0.2.1-pilot'
+VERSION_CODE = 3
 
 root = Path(__file__).resolve().parents[1]
 app = root / 'build-android-app'
@@ -82,6 +82,11 @@ patch('app/src/main/AndroidManifest.xml',
                 <data android:scheme="sufficitphone" android:host="login" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".sufficit.SufficitLoginService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <activity
             android:name=".ui.welcome.WelcomeActivity\"""")

@@ -1,6 +1,6 @@
 # Sufficit Phone para Android — piloto
 
-APK separado do aplicativo desktop, com identificador `com.sufficit.phone`, nome Sufficit Phone e versão `0.2.0-pilot` (versionCode 2). Android 9/API 28 ou superior; ARMv7 e ARM64. Preserva a interface e os recursos SIP do Linphone Android. Não contém contas ou senhas de ramais.
+APK separado do aplicativo desktop, com identificador `com.sufficit.phone`, nome Sufficit Phone e versão `0.2.1-pilot` (versionCode 3). Android 9/API 28 ou superior; ARMv7 e ARM64. Preserva a interface e os recursos SIP do Linphone Android. Não contém contas ou senhas de ramais.
 
 ## Login Sufficit (obrigatório)
 
@@ -10,6 +10,8 @@ A partir da 0.2.0 o app só abre após login com a conta Sufficit; o assistente 
 2. `POST /installations` com o token Bearer; polling até um ramal ser atribuído; a URL de provisionamento de uso único é aplicada via `core.provisioningUri` + reinício do Core e removida em seguida; `POST /applied` informa a versão.
 3. Refresh token apenas em `EncryptedSharedPreferences` (Android Keystore), sem fallback em texto puro; sessão retomada silenciosamente ao abrir o app. Heartbeat (`clientPlatform=android`) a cada 15 minutos verifica nova configuração.
 4. `invalid_grant` apaga a sessão e volta ao login; remover a última conta SIP também encerra a sessão.
+
+0.2.1-pilot: o retorno do login atende cada conexão do navegador em paralelo. O Chrome abre conexões especulativas para `127.0.0.1:47623` antes de enviar o pedido; atendidas uma por vez, cada conexão ociosa segurava o retorno real por 10 s e a página ficava em "Retornando com segurança para o aplicativo".
 
 Código novo em `android/overlay/` (copiado no build); os arquivos upstream são alterados por âncoras exatas em `scripts/prepare-android.py`, que aborta se o upstream mudar.
 

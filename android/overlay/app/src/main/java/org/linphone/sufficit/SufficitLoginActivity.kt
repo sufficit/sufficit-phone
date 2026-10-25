@@ -7,7 +7,9 @@
  */
 package org.linphone.sufficit
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
@@ -24,6 +26,11 @@ import org.linphone.compatibility.Compatibility
 import org.linphone.ui.main.MainActivity
 
 class SufficitLoginActivity : AppCompatActivity() {
+    companion object {
+        /** Same page the desktop app opens (Meu Provisionamento > Meus dispositivos). */
+        private const val RAMAL_ASSIGNMENT_URL = "https://blazor.sufficit.com.br/pages/provisioning/my-devices"
+    }
+
     private lateinit var status: TextView
     private lateinit var detail: TextView
     private lateinit var progress: ProgressBar
@@ -124,9 +131,15 @@ class SufficitLoginActivity : AppCompatActivity() {
             SufficitAuth.State.RESUMING -> title = "Retomando sua sessão Sufficit…"
             SufficitAuth.State.REGISTERING -> title = "Registrando este aparelho…"
             SufficitAuth.State.WAITING_FOR_RAMAL -> {
-                title = "Aguardando a atribuição de um ramal"
-                info = "Peça ao administrador da sua empresa para atribuir um ramal a este aparelho. " +
+                // The next step is the user's (choose a ramal); polling runs silently,
+                // so no spinner here: it would wrongly tell the user to wait.
+                busy = false
+                title = "Escolha o ramal deste aparelho"
+                info = "Login concluído. Toque em Escolher ramal, selecione um ramal para este aparelho " +
+                    "e volte ao app: a configuração continua automaticamente.\n\n" +
                     "Instalação: " + SufficitAuth.installationId()
+                primaryText = "Escolher ramal"
+                primaryAction = { openRamalAssignment() }
                 secondaryText = "Sair da conta"
                 secondaryAction = { SufficitAuth.signOut() }
             }
@@ -155,6 +168,16 @@ class SufficitLoginActivity : AppCompatActivity() {
         secondary.visibility = if (secondaryText == null) View.GONE else View.VISIBLE
         secondary.text = secondaryText ?: ""
         secondary.setOnClickListener { secondaryAction?.invoke() }
+    }
+
+    /** Opens the self-service page where the signed-in user assigns a ramal. */
+    private fun openRamalAssignment() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(RAMAL_ASSIGNMENT_URL)))
+        } catch (e: ActivityNotFoundException) {
+            detail.text = "Nenhum navegador disponível. Acesse: $RAMAL_ASSIGNMENT_URL"
+            detail.visibility = View.VISIBLE
+        }
     }
 
     private fun openMain() {

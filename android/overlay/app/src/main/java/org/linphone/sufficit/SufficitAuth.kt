@@ -34,6 +34,7 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.net.ServerSocket
+import java.net.Socket
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.URLEncoder
@@ -44,10 +45,15 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import org.json.JSONObject
 import org.linphone.BuildConfig
 import org.linphone.LinphoneApplication.Companion.coreContext
+import org.linphone.core.Account
+import org.linphone.core.AuthInfo
+import org.linphone.core.AuthMethod
 import org.linphone.core.ConfiguringState
+import org.linphone.core.RegistrationState
 import org.linphone.core.Core
 import org.linphone.core.CoreListenerStub
 import org.linphone.core.tools.Log
@@ -112,8 +118,50 @@ object SufficitAuth {
 
     private var coreListenerAdded = false
 
+    // Diagnostics: never logs secrets, only presence/length of credentials.
+    // Written straight to logcat because the Linphone logger is silent in release builds.
+    private fun diag(message: String) {
+        android.util.Log.i("SufficitDiag", message)
+        Log.i("$TAG $message")
+    }
+
+    private fun describeAuthInfo(info: AuthInfo): String =
+        "username=${info.username} userid=${info.userid} realm=${info.realm} domain=${info.domain} " +
+            "algorithm=${info.algorithm} password=${info.password?.let { "<${it.length} chars>" } ?: "<none>"} " +
+            "ha1=${info.ha1?.let { "<${it.length} chars>" } ?: "<none>"}"
+
+    private fun dumpSipSetup(core: Core, reason: String) {
+        diag("[diag] $reason: ${core.authInfoList.size} auth info(s), ${core.accountList.size} account(s)")
+        core.authInfoList.forEach { diag("[diag] stored auth: ${describeAuthInfo(it)}") }
+        core.accountList.forEach { account ->
+            val params = account.params
+            diag("[diag] account identity=${params.identityAddress?.asStringUriOnly()} " +
+                    "server=${params.serverAddress?.asStringUriOnly()} realm=${params.realm} " +
+                    "transport=${params.transport} state=${account.state}"
+            )
+        }
+    }
+
     private val coreListener = object : CoreListenerStub() {
+        override fun onAuthenticationRequested(core: Core, authInfo: AuthInfo, method: AuthMethod) {
+            diag("[diag] Server requested authentication ($method): ${describeAuthInfo(authInfo)}")
+            dumpSipSetup(core, "on authentication request")
+        }
+
+        override fun onAccountRegistrationStateChanged(
+            core: Core,
+            account: Account,
+            state: RegistrationState?,
+            message: String
+        ) {
+            val error = account.errorInfo
+            diag("[diag] Registration ${account.params.identityAddress?.asStringUriOnly()} -> $state " +
+                    "[$message] reason=${error?.reason} protocolCode=${error?.protocolCode} phrase=${error?.phrase}"
+            )
+        }
+
         override fun onConfiguringStatus(core: Core, status: ConfiguringState?, message: String?) {
+            if (status == ConfiguringState.Successful) dumpSipSetup(core, "after provisioning")
             val version = pendingConfigVersion
             if (version < 0) return
             if (status == ConfiguringState.Successful) {
@@ -157,6 +205,13 @@ object SufficitAuth {
             // No secure store: no persistence, never a plaintext fallback.
             Log.e("$TAG Secure storage unavailable, the session will not survive restarts: $e")
             null
+        }
+        coreContext.postOnCoreThread { core ->
+            if (!coreListenerAdded) {
+                core.addListener(coreListener)
+                coreListenerAdded = true
+            }
+            dumpSipSetup(core, "at startup")
         }
         refreshToken = securePrefs?.getString(KEY_REFRESH_TOKEN, null)
         if (refreshToken != null) {
@@ -218,7 +273,16 @@ object SufficitAuth {
         state.postValue(State.AUTHORIZING)
         message.postValue(null)
 
-        Thread({ runLogin(attempt) }, "SufficitLogin").start()
+        SufficitLoginService.start(appContext)
+        Thread({
+            try {
+                runLogin(attempt)
+            } finally {
+                // The callback (or its failure) has been handled; the token
+                // exchange no longer depends on the browser.
+                if (attempt == loginAttempt) SufficitLoginService.stop(appContext)
+            }
+        }, "SufficitLogin").start()
     }
 
     private fun runLogin(attempt: Int) {
@@ -300,54 +364,84 @@ object SufficitAuth {
         }
     }
 
-    /** Accepts loopback connections until one carries the OAuth response. */
+    /**
+     * Accepts loopback connections until one carries the OAuth response.
+     *
+     * Each connection is served on its own thread. Browsers open speculative
+     * connections to the redirect target before sending the request on one of
+     * them; served one at a time, every idle connection held the real callback
+     * for its whole read timeout and the browser sat on "returning to the app"
+     * (2026-10-25, Chrome 155 opened three).
+     */
     private fun waitForCallback(server: ServerSocket, attempt: Int): Map<String, String>? {
         val deadline = System.currentTimeMillis() + LOGIN_TIMEOUT_MS
-        while (attempt == loginAttempt) {
-            val remaining = deadline - System.currentTimeMillis()
-            if (remaining <= 0) break
-            server.soTimeout = remaining.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-            val socket = try {
-                server.accept()
-            } catch (_: SocketTimeoutException) {
-                break
-            } catch (e: Exception) {
-                if (attempt == loginAttempt) Log.w("$TAG Loopback accept failed: $e")
-                return null
-            }
-            socket.use { s ->
-                try {
-                    s.soTimeout = 10_000
-                    val reader = BufferedReader(InputStreamReader(s.getInputStream(), Charsets.US_ASCII))
-                    val requestLine = reader.readLine() ?: return@use
-                    val target = requestLine.split(" ").getOrNull(1) ?: return@use
-                    val uri = Uri.parse("http://127.0.0.1$target")
-                    val params = HashMap<String, String>()
-                    for (name in uri.queryParameterNames) {
-                        uri.getQueryParameter(name)?.let { params[name] = it }
-                    }
-                    val isCallback = params.containsKey("code") || params.containsKey("error")
-                    val body = if (isCallback) callbackPage() else ""
-                    val status = if (isCallback) "200 OK" else "404 Not Found"
-                    val bytes = body.toByteArray(Charsets.UTF_8)
-                    val out = s.getOutputStream()
-                    out.write(
-                        (
-                            "HTTP/1.1 $status\r\nContent-Type: text/html; charset=utf-8\r\n" +
-                                "Content-Length: ${bytes.size}\r\nCache-Control: no-store\r\n" +
-                                "Connection: close\r\n\r\n"
-                            ).toByteArray(Charsets.US_ASCII)
-                    )
-                    out.write(bytes)
-                    out.flush()
-                    if (isCallback) return params
+        val result = AtomicReference<Map<String, String>?>(null)
+        val received = CountDownLatch(1)
+        val handlers = Executors.newCachedThreadPool()
+        try {
+            while (attempt == loginAttempt && received.count > 0) {
+                val remaining = deadline - System.currentTimeMillis()
+                if (remaining <= 0) break
+                // Short accept slices so a callback served by a handler thread
+                // ends the loop promptly.
+                server.soTimeout = remaining.coerceAtMost(1_000L).toInt()
+                val socket = try {
+                    server.accept()
+                } catch (_: SocketTimeoutException) {
+                    continue
                 } catch (e: Exception) {
-                    Log.w("$TAG Ignoring malformed loopback request: $e")
+                    if (attempt == loginAttempt && received.count > 0) Log.w("$TAG Loopback accept failed: $e")
+                    break
                 }
+                handlers.execute { serveLoopback(socket, result, received) }
             }
+        } finally {
+            handlers.shutdown()
         }
+        result.get()?.let { return it }
         if (attempt == loginAttempt) fail("O login não foi concluído a tempo. Tente novamente.")
         return null
+    }
+
+    private fun serveLoopback(
+        socket: Socket,
+        result: AtomicReference<Map<String, String>?>,
+        received: CountDownLatch
+    ) {
+        socket.use { s ->
+            try {
+                s.soTimeout = 10_000
+                val reader = BufferedReader(InputStreamReader(s.getInputStream(), Charsets.US_ASCII))
+                val requestLine = reader.readLine() ?: return
+                val target = requestLine.split(" ").getOrNull(1) ?: return
+                val uri = Uri.parse("http://127.0.0.1$target")
+                val params = HashMap<String, String>()
+                for (name in uri.queryParameterNames) {
+                    uri.getQueryParameter(name)?.let { params[name] = it }
+                }
+                val isCallback = params.containsKey("code") || params.containsKey("error")
+                val body = if (isCallback) callbackPage() else ""
+                val status = if (isCallback) "200 OK" else "404 Not Found"
+                val bytes = body.toByteArray(Charsets.UTF_8)
+                val out = s.getOutputStream()
+                out.write(
+                    (
+                        "HTTP/1.1 $status\r\nContent-Type: text/html; charset=utf-8\r\n" +
+                            "Content-Length: ${bytes.size}\r\nCache-Control: no-store\r\n" +
+                            "Connection: close\r\n\r\n"
+                        ).toByteArray(Charsets.US_ASCII)
+                )
+                out.write(bytes)
+                out.flush()
+                // The page is written before the loop is released, so closing
+                // the listener never cuts the browser's response short.
+                if (isCallback && result.compareAndSet(null, params)) received.countDown()
+            } catch (_: SocketTimeoutException) {
+                // An idle speculative connection the browser never used.
+            } catch (e: Exception) {
+                Log.w("$TAG Ignoring malformed loopback request: $e")
+            }
+        }
     }
 
     private fun callbackPage(): String =
@@ -594,6 +688,7 @@ object SufficitAuth {
     // ---------------------------------------------------------------------
 
     private fun fail(reason: String) {
+        SufficitLoginService.stop(appContext)
         message.postValue(reason)
         state.postValue(State.FAILED)
     }
