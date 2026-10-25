@@ -108,3 +108,8 @@ inject it via `-DLINPHONEAPP_VERSION` / `-DLINPHONESDK_VERSION`, skipping that
 code path. When building locally from a directory with those tags, pass e.g.
 `-DLINPHONEAPP_VERSION=6.2.0-alpha.2` (or use the script) to avoid the same
 failure.
+
+## Android installable pilot
+
+The Android application can now be built separately from the SDK-only CI job.
+See [Android build and usage](docs/ANDROID.md) for pinned sources, signing and limitations.
