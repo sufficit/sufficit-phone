@@ -68,3 +68,6 @@ linphone62*.log
 !.github/**
 # Python bytecode cache
 **/__pycache__/
+
+# Android installer artifacts (sources generated from pinned upstream)
+/dist-android/
