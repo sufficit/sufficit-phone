@@ -56,6 +56,8 @@ import org.linphone.core.ConfiguringState
 import org.linphone.core.RegistrationState
 import org.linphone.core.Core
 import org.linphone.core.CoreListenerStub
+import org.linphone.core.Content
+import org.linphone.core.Event
 import org.linphone.core.tools.Log
 
 object SufficitAuth {
@@ -71,6 +73,11 @@ object SufficitAuth {
     private const val POLL_INTERVAL_MS = 3_000L
     private const val HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000L
     private const val LOGIN_TIMEOUT_MS = 5 * 60 * 1000L
+
+    /** SIP event that asks the device to look for a new configuration now. */
+    private const val CHECK_SYNC_EVENT = "check-sync"
+    /** Ignore repeated check-sync NOTIFYs inside this window (flood protection). */
+    private const val CHECK_SYNC_MIN_INTERVAL_MS = 10_000L
 
     private const val SECURE_PREFS = "sufficit_auth_secure"
     private const val PLAIN_PREFS = "sufficit_auth"
@@ -118,6 +125,8 @@ object SufficitAuth {
 
     private var coreListenerAdded = false
 
+    @Volatile private var lastCheckSyncAt = 0L
+
     // Diagnostics: never logs secrets, only presence/length of credentials.
     // Written straight to logcat because the Linphone logger is silent in release builds.
     private fun diag(message: String) {
@@ -143,6 +152,17 @@ object SufficitAuth {
     }
 
     private val coreListener = object : CoreListenerStub() {
+        override fun onNotifyReceived(core: Core, linphoneEvent: Event, notifiedEvent: String, body: Content?) {
+            // Asterisk/PJSIP: `pjsip send notify <option> endpoint <ramal>` with
+            // `Event: check-sync`. The NOTIFY is only a wake-up hint and carries
+            // no configuration: the device asks the authenticated provisioning
+            // API, so a forged NOTIFY can at most trigger one extra check.
+            val name = notifiedEvent.substringBefore(';').trim()
+            if (!name.equals(CHECK_SYNC_EVENT, ignoreCase = true)) return
+            diag("[diag] SIP NOTIFY $notifiedEvent received, checking provisioning now")
+            executor.execute { checkSyncRequested() }
+        }
+
         override fun onAuthenticationRequested(core: Core, authInfo: AuthInfo, method: AuthMethod) {
             diag("[diag] Server requested authentication ($method): ${describeAuthInfo(authInfo)}")
             dumpSipSetup(core, "on authentication request")
@@ -656,6 +676,22 @@ object SufficitAuth {
         sendHeartbeat()
         // Cheap when nothing changed: the server only issues a ticket for a
         // configuration version this installation has not applied yet.
+        if (pollTask == null && pendingConfigVersion < 0) pollInstallation()
+    }
+
+    private fun checkSyncRequested() {
+        val now = System.currentTimeMillis()
+        if (now - lastCheckSyncAt < CHECK_SYNC_MIN_INTERVAL_MS) {
+            diag("[diag] check-sync ignored, last check ${now - lastCheckSyncAt} ms ago")
+            return
+        }
+        lastCheckSyncAt = now
+        if (!registered) {
+            if (refreshToken != null) resumeSession()
+            return
+        }
+        // A poll already scheduled or a configuration being applied will
+        // report the newest version by itself.
         if (pollTask == null && pendingConfigVersion < 0) pollInstallation()
     }
 
