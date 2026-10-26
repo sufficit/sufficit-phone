@@ -5,8 +5,8 @@ import subprocess
 import re
 import shutil
 
-VERSION_NAME = '0.2.1-pilot'
-VERSION_CODE = 3
+VERSION_NAME = '0.2.2-pilot'
+VERSION_CODE = 4
 
 root = Path(__file__).resolve().parents[1]
 app = root / 'build-android-app'
@@ -22,7 +22,7 @@ if actual != revision:
 v = app / 'gradle/libs.versions.toml'
 v.write_text(v.read_text().replace('linphone = "5.5.+"', 'linphone = "5.5.38"'))
 p = app / 'app/build.gradle.kts'
-s = p.read_text().replace('val packageName = "org.linphone"', 'val packageName = "com.sufficit.phone"')
+s = subprocess.check_output(['git', '-C', str(app), 'show', 'HEAD:app/build.gradle.kts'], text=True).replace('val packageName = "org.linphone"', 'val packageName = "com.sufficit.phone"')
 s = s.replace('versionCode = 602008', f'versionCode = {VERSION_CODE}').replace('versionName = "6.2.8"', f'versionName = "{VERSION_NAME}"')
 s = s.replace('"linphone-android-${variant.buildType.name}-$gitVersion.apk"', '"sufficit-phone-android-' + VERSION_NAME + '-${variant.buildType.name}.apk"')
 p.write_text(s)
