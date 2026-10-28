@@ -5,8 +5,8 @@ import subprocess
 import re
 import shutil
 
-VERSION_NAME = '0.2.4-pilot'
-VERSION_CODE = 6
+VERSION_NAME = '0.2.5-pilot'
+VERSION_CODE = 7
 
 root = Path(__file__).resolve().parents[1]
 app = root / 'build-android-app'
@@ -139,5 +139,17 @@ patch(java + 'ui/welcome/WelcomeActivity.kt',
       """        val intent = Intent(this, AssistantActivity::class.java)
         intent.putExtra(AssistantActivity.SKIP_LANDING_EXTRA, true)""",
       """        val intent = Intent(this, """ + LOGIN + """)""")
+
+# Sufficit: simple dialer. Users dial a ramal/number; the server is always the
+# provisioned account. Never show SIP URIs/servers nor linphone.org directory.
+patch(java + 'core/CorePreferences.kt',
+      'get() = config.getBool("ui", "hide_sip_addresses", false)',
+      'get() = true // Sufficit: never show SIP servers to the user')
+patch(java + 'core/CorePreferences.kt',
+      'get() = config.getBool("ui", "only_display_sip_uri_username", false)',
+      'get() = true // Sufficit: show only the ramal/number')
+patch(java + 'core/CorePreferences.kt',
+      'get() = config.getString("ui", "contacts_filter", "")!! // Default value must be empty!',
+      'get() = "*" // Sufficit: any SIP domain (no linphone.org directory filter)')
 
 print('Android overlay prepared at', app)
