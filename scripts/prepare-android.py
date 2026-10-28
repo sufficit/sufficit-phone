@@ -5,8 +5,8 @@ import subprocess
 import re
 import shutil
 
-VERSION_NAME = '0.2.3-pilot'
-VERSION_CODE = 5
+VERSION_NAME = '0.2.4-pilot'
+VERSION_CODE = 6
 
 root = Path(__file__).resolve().parents[1]
 app = root / 'build-android-app'

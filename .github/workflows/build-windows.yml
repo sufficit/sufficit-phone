@@ -236,7 +236,7 @@ jobs:
         shell: bash
         run: |
           APP_VERSION=$(bash .github/scripts/app-version.sh)
-          SDK_VERSION=$(git -C external/linphone-sdk describe --tags --long 2>/dev/null || bash .github/scripts/app-version.sh)
+          SDK_VERSION=$(git -C external/linphone-sdk describe --tags --long --match '[0-9]*' 2>/dev/null || bash .github/scripts/app-version.sh)
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "SDK_VERSION=$SDK_VERSION" >> "$GITHUB_ENV"
 
