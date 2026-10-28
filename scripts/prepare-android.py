@@ -5,8 +5,8 @@ import subprocess
 import re
 import shutil
 
-VERSION_NAME = '0.2.5-pilot'
-VERSION_CODE = 7
+VERSION_NAME = '0.2.6-pilot'
+VERSION_CODE = 8
 
 root = Path(__file__).resolve().parents[1]
 app = root / 'build-android-app'
@@ -131,9 +131,30 @@ patch(java + 'ui/main/MainActivity.kt',
                 startActivity(Intent(this, """ + LOGIN + """))
                 finish()""")
 
+# Sufficit: extra accounts. The provisioned account is always the first one;
+# "Adicionar uma conta" opens the SIP account form directly (other servers,
+# including third parties). Enabled by default; provisioning disables it with
+# [ui] max_account=1 (upstream key, 0 = unlimited) whenever we want.
 patch(java + 'ui/main/fragment/DrawerMenuFragment.kt',
       'startActivity(Intent(requireActivity(), AssistantActivity::class.java))',
-      'org.linphone.sufficit.SufficitAuth.retry()\n                startActivity(Intent(requireActivity(), ' + LOGIN + '))')
+      'startActivity(Intent(requireActivity(), AssistantActivity::class.java).putExtra(AssistantActivity.SUFFICIT_EXTRA_ACCOUNT, true))')
+patch(java + 'ui/assistant/AssistantActivity.kt',
+      '        const val SKIP_LANDING_EXTRA = "SkipLandingIfAtLeastAnAccount"',
+      '        const val SKIP_LANDING_EXTRA = "SkipLandingIfAtLeastAnAccount"\n        const val SUFFICIT_EXTRA_ACCOUNT = "SufficitExtraAccount"')
+patch(java + 'ui/assistant/AssistantActivity.kt',
+      '            } else if (intent.getBooleanExtra(SKIP_LANDING_EXTRA, false)) {',
+      '''            } else if (intent.getBooleanExtra(SUFFICIT_EXTRA_ACCOUNT, false)) {
+                binding.assistantNavContainer.findNavController().navigate(R.id.thirdPartySipAccountLoginFragment)
+            } else if (intent.getBooleanExtra(SKIP_LANDING_EXTRA, false)) {''')
+patch(java + 'ui/assistant/fragment/ThirdPartySipAccountLoginFragment.kt',
+      '''    private fun goBack() {
+        findNavController().popBackStack()''',
+      '''    private fun goBack() {
+        if (requireActivity().intent.getBooleanExtra(org.linphone.ui.assistant.AssistantActivity.SUFFICIT_EXTRA_ACCOUNT, false)) {
+            requireActivity().finish()
+            return
+        }
+        findNavController().popBackStack()''')
 
 patch(java + 'ui/welcome/WelcomeActivity.kt',
       """        val intent = Intent(this, AssistantActivity::class.java)
