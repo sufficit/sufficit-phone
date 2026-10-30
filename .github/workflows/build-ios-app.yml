@@ -1,0 +1,41 @@
+# Sufficit Phone para iPhone (base linphone-iphone 6.2.4 + scripts/prepare-ios.py).
+# Sem credenciais Apple: compila para o simulador, sem assinatura.
+# Com os secrets da conta Apple (ver docs/IOS.md) passa a gerar IPA/TestFlight.
+name: Build iOS App
+on:
+  push:
+    branches: [main]
+    paths: ['ios/**', 'scripts/prepare-ios.py', '.github/workflows/build-ios-app.yml']
+  pull_request:
+    paths: ['ios/**', 'scripts/prepare-ios.py', '.github/workflows/build-ios-app.yml']
+  workflow_dispatch:
+concurrency:
+  group: build-ios-app-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  simulator:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: false }
+      - name: Prepare Sufficit Phone iOS sources
+        run: python3 scripts/prepare-ios.py
+      - name: Build (iOS Simulator, unsigned)
+        working-directory: build-ios-app
+        run: |
+          xcodebuild -version
+          xcodebuild -project LinphoneApp.xcodeproj -scheme Linphone \
+            -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ../dd CODE_SIGNING_ALLOWED=NO build
+      - name: Package .app
+        run: |
+          app=$(find dd/Build/Products -maxdepth 2 -name '*.app' | head -1)
+          test -n "$app"
+          /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist"
+          ditto -c -k --keepParent "$app" sufficit-phone-ios-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sufficit-phone-ios-simulator
+          path: sufficit-phone-ios-simulator.zip
