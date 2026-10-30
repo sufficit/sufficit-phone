@@ -71,3 +71,4 @@ linphone62*.log
 
 # Android installer artifacts (sources generated from pinned upstream)
 /dist-android/
+build-ios-app/
