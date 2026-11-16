@@ -5,8 +5,8 @@ import subprocess
 import re
 import shutil
 
-VERSION_NAME = '0.2.6-pilot'
-VERSION_CODE = 8
+VERSION_NAME = '0.2.7-pilot'
+VERSION_CODE = 9
 
 root = Path(__file__).resolve().parents[1]
 app = root / 'build-android-app'
@@ -172,5 +172,11 @@ patch(java + 'core/CorePreferences.kt',
 patch(java + 'core/CorePreferences.kt',
       'get() = config.getString("ui", "contacts_filter", "")!! // Default value must be empty!',
       'get() = "*" // Sufficit: any SIP domain (no linphone.org directory filter)')
+
+# Sufficit: screenshots/screen recording allowed by default (support, store
+# screenshots). Provisioning can still enable it with ui.enable_secure_mode=1.
+patch(java + 'core/CorePreferences.kt',
+      'get() = config.getBool("ui", "enable_secure_mode", true)',
+      'get() = config.getBool("ui", "enable_secure_mode", false) // Sufficit: off by default')
 
 print('Android overlay prepared at', app)
