@@ -68,6 +68,20 @@ def patch(rel, old, new, count=1):
 java = 'app/src/main/java/org/linphone/'
 LOGIN = 'org.linphone.sufficit.SufficitLoginActivity::class.java'
 
+# Play: Wi-Fi is optional (mobile data works); avoid implicit required feature
+patch('app/src/main/AndroidManifest.xml',
+      '''    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+''',
+      '''    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.wifi"
+        android:required="false" />
+''')
+
 patch('app/src/main/AndroidManifest.xml',
       '        <activity\n            android:name=".ui.welcome.WelcomeActivity"',
       """        <activity
