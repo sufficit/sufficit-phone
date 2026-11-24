@@ -477,6 +477,8 @@ void SufficitOAuth::sendHeartbeat() {
 QJsonObject SufficitOAuth::presenceBody(const QString &ramalId, LinphoneEnums::Presence presence, const QString &note) {
 	QJsonObject body;
 	body["endPointId"] = ramalId;
+	// The PJSIP device of the extension: per-device extensions change only this softphone, unified ones every device.
+	body["device"] = QStringLiteral("pjsip");
 	QString state;
 	switch (presence) {
 		case LinphoneEnums::Presence::Online:

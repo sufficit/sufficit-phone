@@ -17,6 +17,10 @@ API. SIMPLE `PUBLISH` stays off, because Asterisk rejects client presence with
 
 The presence note (up to 140 characters) becomes the presence message.
 
+The request names the device (`device: "pjsip"`, 2026-11-24). Extensions with the default
+unified presence apply the status to every device; extensions set to presence per device
+apply it only to this softphone (the Chrome extension sends `webrtc`).
+
 ## Changes
 
 - `Linphone/tool/SufficitOAuth.*`:
