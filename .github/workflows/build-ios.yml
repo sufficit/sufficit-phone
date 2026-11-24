@@ -62,9 +62,17 @@ jobs:
           fi
           echo teste | sha256sum >/dev/null && echo "sha256sum OK: $(command -v sha256sum)"
 
+      - name: Compute SDK version
+        # Same as the macOS job: without it the SDK runs "git describe" in this repository and gets
+        # an app tag such as 6.2.0-alpha.2-42-g<sha>, which bc_compute_full_version rejects.
+        run: |
+          SDK_VERSION=$(git -C external/linphone-sdk describe --tags --long --match '[0-9]*' 2>/dev/null || bash .github/scripts/app-version.sh)
+          echo "SDK_VERSION=$SDK_VERSION" >> "$GITHUB_ENV"
+
       - name: Configure SDK (packager, simulator)
         run: |
           cmake -S external/linphone-sdk -B build-ios --preset ios-sdk \
+            -DLINPHONESDK_VERSION="$SDK_VERSION" \
             -DLINPHONESDK_IOS_PLATFORM=Simulator \
             -DLINPHONESDK_IOS_ARCHS=arm64 \
             -DENABLE_WARNINGS_AS_ERRORS=OFF
