@@ -6,6 +6,8 @@
 import argparse
 import json
 import pathlib
+import sys
+import urllib.error
 import urllib.request
 
 parser = argparse.ArgumentParser()
@@ -17,6 +19,10 @@ body = (pathlib.Path(__file__).resolve().parent.parent / 'identity-manifest.v1.j
 for action in (['inventory', 'preview', 'apply'] if args.apply else ['inventory', 'preview']):
     request = urllib.request.Request('https://identity.sufficit.com.br/api/provisioning/manifest/' + action,
         data=body, headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token})
-    with urllib.request.urlopen(request, timeout=15) as response:
-        result = json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            result = json.load(response)
+    except urllib.error.HTTPError as error:
+        print(action, error.code, error.read().decode(errors='replace')[:4000])
+        sys.exit(1)
     print(action, json.dumps(result))

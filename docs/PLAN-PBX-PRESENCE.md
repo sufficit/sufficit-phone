@@ -39,12 +39,10 @@ The presence note (up to 140 characters) becomes the presence message.
 - [x] Code (desktop/Qt). The three changed sources pass a syntax check with the
   recorded build flags. A full local build is blocked by a missing
   `libsecret-1` on this workstation; CI builds the app.
-- [ ] Identity: apply the manifest with
-  `python3 scripts/identity-provision.py --token-file <file> --apply`. This needs
-  an operator token with `identity.provisioning.preview` and
-  `identity.provisioning.apply`.
-  **Apply it before releasing a build that requests the new scope**, otherwise
-  interactive sign-in fails with `invalid_scope`.
+- [x] Identity (2026-11-23): manifest applied with an operator token. `endpoints.phone` is a scope owned by
+  `sufficit-endpoints.v1`, so the manifest lists it in `referencedScopes` instead of declaring it.
+  Preview: `provisioning.installation` unchanged, client `sufficit-phone-desktop` updated. The client now
+  has `scp:endpoints.phone`. `/connect/authorize` with the new scope answers 302 to the login page.
 - [ ] Android (`android/overlay/.../SufficitAuth.kt`): same mapping and scope.
 - [ ] Validation with a real installation on apoint: change the status, then
   confirm the PBX presence, the panel card and that queues skip `dnd`.

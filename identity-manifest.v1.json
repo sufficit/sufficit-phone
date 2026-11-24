@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "manifestId": "sufficit-phone-desktop.v1",
   "rolloutMode": "Enforce",
+  "referencedScopes": [ "endpoints.phone" ],
   "scopes": [
     {
       "name": "provisioning.installation",
