@@ -24,6 +24,16 @@ Menu lateral → **Disponibilidade**: Disponível ou Não perturbe. A escolha vi
 os aparelhos do ramal, se a presença for unificada). Em Não perturbe o app também recusa chamadas que ainda
 cheguem. Quem entrou com versão anterior precisa sair e entrar de novo na conta Sufficit uma vez.
 
+## Ramal atribuído (0.2.8-pilot)
+
+- O app guarda quais contas a última configuração do ramal atribuído criou. Se nenhuma delas continuar no
+  aparelho (conta trocada à mão), ele pede a configuração de novo na próxima consulta, em vez de declarar a
+  versão como aplicada para sempre. Caso real em 24/11/2026: instalação atribuída ao 6001, aparelho no 6090
+  desde o fim de outubro; reaplicado no mesmo dia.
+- Nunca aplica configuração durante uma chamada (reiniciar o núcleo derrubaria a chamada); tenta de novo depois.
+- O endereço de uso único do provisionamento deixado na configuração por versões antigas é apagado ao iniciar;
+  era ele que mostrava "Erro ao tentar baixar e aplicar a configuração remota" a cada abertura.
+
 ## Fontes e compilação
 
 Base: [Linphone Android 6.2.8](https://github.com/BelledonneCommunications/linphone-android/tree/dcaa165b77ed374b7beaedc8deae3e8a9b4fd30c), revisão fixada `dcaa165b77ed374b7beaedc8deae3e8a9b4fd30c`. SDK Maven `org.linphone:linphone-sdk-android:5.5.38`, compatível com essa interface. O SDK desktop/Android alpha anteriormente publicado pelo repositório não foi substituído. Fontes do SDK: https://gitlab.linphone.org/BC/public/linphone-sdk/-/tree/5.5.38. Licenças e atribuições upstream preservadas.

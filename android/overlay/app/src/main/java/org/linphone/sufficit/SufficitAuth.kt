@@ -86,6 +86,7 @@ object SufficitAuth {
     private const val KEY_INSTALLATION_ID = "installation_id"
     private const val KEY_APPLIED_VERSION = "applied_config_version"
     private const val KEY_RAMAL = "assigned_ramal_id"
+    private const val KEY_APPLIED_IDENTITIES = "applied_identities"
 
     const val RETURN_SCHEME = "sufficitphone"
     private const val RETURN_INTENT =
@@ -213,6 +214,14 @@ object SufficitAuth {
         appContext = context.applicationContext
         plainPrefs = appContext.getSharedPreferences(PLAIN_PREFS, Context.MODE_PRIVATE)
         SufficitPresence.init(appContext)
+        // A one-time provisioning URL left in the config (versions before 0.2.8 did not always clear it) is
+        // fetched again on every Core start and fails ("Erro ao tentar baixar e aplicar a configuração remota").
+        coreContext.postOnCoreThread { core ->
+            if (pendingConfigVersion < 0 && !core.provisioningUri.isNullOrEmpty()) {
+                Log.i("$TAG Clearing a stale provisioning URL")
+                core.provisioningUri = null
+            }
+        }
         securePrefs = try {
             val masterKey = MasterKey.Builder(appContext)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -583,7 +592,10 @@ object SufficitAuth {
         executor.execute {
             // The extension this phone actually registers with: the installation assignment may point to another
             // extension whose configuration was not applied yet (2026-11-24: assigned 6001, registered 6090).
-            val ramal = registeredRamal() ?: plainPrefs.getString(KEY_RAMAL, null)
+            // Order: the assigned extension while its provisioned account is in the Core (its identity may be the
+            // number, legacy SIP); otherwise the GUID of the account in use; the assignment as the last resort.
+            val assigned = plainPrefs.getString(KEY_RAMAL, null)
+            val ramal = (if (hasAssignedAccount()) assigned else null) ?: registeredRamal() ?: assigned
             if (ramal.isNullOrEmpty()) {
                 done(-1)
                 return@execute
@@ -651,7 +663,9 @@ object SufficitAuth {
         val applied = plainPrefs.getLong(KEY_APPLIED_VERSION, -1)
         // Without any SIP account the configuration must be fetched again,
         // even when the server believes this version was already applied.
-        val includeApplied = applied >= 0 && hasSipAccount()
+        // Report the applied version only while the assigned extension is still configured: an account replaced
+        // by hand (2026-11-24: assigned 6001, phone on 6090) would otherwise never be provisioned again.
+        val includeApplied = applied >= 0 && hasAssignedAccount()
         val path = "/installations/${installationId()}" + if (includeApplied) "?appliedVersion=$applied" else ""
         val response = api("GET", path)
         if (response == null || response.first !in 200..299) {
@@ -686,6 +700,12 @@ object SufficitAuth {
     }
 
     private fun applyConfiguration(url: String, version: Long) {
+        // Applying restarts the Core: never during a call. The next poll issues a fresh ticket.
+        if (activeCalls() > 0) {
+            Log.i("$TAG Call in progress, applying the configuration later")
+            schedulePoll()
+            return
+        }
         state.postValue(State.APPLYING)
         pendingConfigVersion = version
         coreContext.postOnCoreThread { core ->
@@ -701,7 +721,9 @@ object SufficitAuth {
     }
 
     private fun onConfigurationApplied(version: Long) {
-        plainPrefs.edit().putLong(KEY_APPLIED_VERSION, version).apply()
+        val ramal = plainPrefs.getString(KEY_RAMAL, null).orEmpty()
+        plainPrefs.edit().putLong(KEY_APPLIED_VERSION, version)
+            .putString(KEY_APPLIED_IDENTITIES, ramal + "|" + accountIdentities().joinToString(",")).apply()
         val response = api("POST", "/installations/${installationId()}/applied", JSONObject().put("configVersion", version))
         if (response == null || response.first !in 200..299) {
             // 409 just means a newer version exists; the next check picks it up.
@@ -781,6 +803,52 @@ object SufficitAuth {
         SufficitLoginService.stop(appContext)
         message.postValue(reason)
         state.postValue(State.FAILED)
+    }
+
+    /** Identities (user part) of the SIP accounts in this Core. */
+    private fun accountIdentities(): Set<String> {
+        val latch = CountDownLatch(1)
+        val names = mutableSetOf<String>()
+        coreContext.postOnCoreThread { core ->
+            try {
+                for (account in core.accountList) account.params.identityAddress?.username?.let { names.add(it.lowercase()) }
+            } finally {
+                latch.countDown()
+            }
+        }
+        latch.await(5, TimeUnit.SECONDS)
+        return names
+    }
+
+    /**
+     * True while an account created by the last applied configuration of the assigned extension is still in the
+     * Core. Without that record (configuration applied before 0.2.8, or another extension assigned since) the
+     * configuration is requested once more and the record starts.
+     */
+    private fun hasAssignedAccount(): Boolean {
+        val assigned = plainPrefs.getString(KEY_RAMAL, null)
+        val record = plainPrefs.getString(KEY_APPLIED_IDENTITIES, null)
+        // Assignment not known yet (first poll after install): keep the previous rule.
+        if (assigned.isNullOrEmpty()) return hasSipAccount()
+        if (record.isNullOrEmpty()) return false
+        val (ramal, identities) = record.split('|', limit = 2).let { it[0] to it.getOrElse(1) { "" }.split(',').filter { x -> x.isNotEmpty() }.toSet() }
+        if (ramal != assigned) return false
+        // Nothing recorded to compare with: never re-apply in a loop.
+        if (identities.isEmpty()) return true
+        val present = accountIdentities().any { it in identities }
+        if (!present) Log.w("$TAG The assigned extension's account is gone; asking for its configuration again")
+        return present
+    }
+
+    private fun activeCalls(): Int {
+        val latch = CountDownLatch(1)
+        var calls = 0
+        coreContext.postOnCoreThread { core ->
+            calls = core.callsNb
+            latch.countDown()
+        }
+        latch.await(5, TimeUnit.SECONDS)
+        return calls
     }
 
     private fun hasSipAccount(): Boolean {
