@@ -67,8 +67,9 @@ object SufficitAuth {
     private const val CLIENT_ID = "sufficit-phone-desktop"
     private const val REDIRECT_PORT = 47623
     private const val REDIRECT_URI = "http://127.0.0.1:47623/"
-    private const val SCOPES = "openid profile offline_access provisioning.installation"
+    private const val SCOPES = "openid profile offline_access provisioning.installation endpoints.phone"
     private const val PROVISIONING_BASE = "https://provisioning.sufficit.com.br:26511"
+    private const val ENDPOINTS_BASE = "https://endpoints.sufficit.com.br"
 
     private const val POLL_INTERVAL_MS = 3_000L
     private const val HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000L
@@ -84,6 +85,7 @@ object SufficitAuth {
     private const val KEY_REFRESH_TOKEN = "refresh_token"
     private const val KEY_INSTALLATION_ID = "installation_id"
     private const val KEY_APPLIED_VERSION = "applied_config_version"
+    private const val KEY_RAMAL = "assigned_ramal_id"
 
     const val RETURN_SCHEME = "sufficitphone"
     private const val RETURN_INTENT =
@@ -210,6 +212,7 @@ object SufficitAuth {
         initialized = true
         appContext = context.applicationContext
         plainPrefs = appContext.getSharedPreferences(PLAIN_PREFS, Context.MODE_PRIVATE)
+        SufficitPresence.init(appContext)
         securePrefs = try {
             val masterKey = MasterKey.Builder(appContext)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -570,6 +573,29 @@ object SufficitAuth {
         return response
     }
 
+    /**
+     * Stores [presence] as the PBX presence of the assigned extension's PJSIP device
+     * (EndPoints PUT /telephony/endpoint/presence). [done] gets the HTTP status, null when
+     * offline, or -1 without an assigned extension. Sessions from before 0.2.8 lack the
+     * endpoints.phone scope (403) until the user signs in again.
+     */
+    fun putPresence(presence: String, done: (Int?) -> Unit) {
+        executor.execute {
+            val ramal = plainPrefs.getString(KEY_RAMAL, null)
+            if (ramal.isNullOrEmpty()) {
+                done(-1)
+                return@execute
+            }
+            val body = JSONObject().put("endPointId", ramal).put("state", presence).put("device", "pjsip").toString()
+            var response = if (ensureAccessToken()) http("PUT", "$ENDPOINTS_BASE/telephony/endpoint/presence", body, "application/json", true) else null
+            if (response?.first == 401 && ensureAccessToken(force = true)) {
+                response = http("PUT", "$ENDPOINTS_BASE/telephony/endpoint/presence", body, "application/json", true)
+            }
+            Log.i("$TAG Presence [$presence] answered HTTP ${response?.first}")
+            done(response?.first)
+        }
+    }
+
     private fun registerInstallation() {
         val response = api("POST", "/installations", JSONObject().put("installationId", installationId()))
         if (response == null || response.first !in 200..299) {
@@ -614,6 +640,7 @@ object SufficitAuth {
         }
         val json = try { JSONObject(response.second) } catch (_: Exception) { JSONObject() }
         val ramal = json.optString("assignedRamalId").takeUnless { it.isEmpty() || it == "null" }
+        if (ramal != null) plainPrefs.edit().putString(KEY_RAMAL, ramal).apply()
         if (ramal == null) {
             state.postValue(State.WAITING_FOR_RAMAL)
             schedulePoll()

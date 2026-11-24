@@ -47,9 +47,12 @@ apply it only to this softphone (the Chrome extension sends `webrtc`).
   `sufficit-endpoints.v1`, so the manifest lists it in `referencedScopes` instead of declaring it.
   Preview: `provisioning.installation` unchanged, client `sufficit-phone-desktop` updated. The client now
   has `scp:endpoints.phone`. `/connect/authorize` with the new scope answers 302 to the login page.
-- [x] Android: not applicable for now (2026-11-24). The Linphone Android app has no status the user picks. It only sets
-  Online in the foreground and Offline in the background when `publishPresence` is on. Mapping that automatic state
-  to the PBX would make queues skip the extension whenever the app is in the background, so it must not be
-  sent. Revisit only if a user-chosen status is added to the Android app.
+- [x] Android 0.2.8-pilot (2026-11-24): the upstream app had no status the user picks (its automatic Online/Offline
+  must never reach the PBX), so the side menu gained "Disponibilidade" with Disponível (`available`) and Não perturbe
+  (`dnd`), stored as the PBX presence of the assigned extension with `device: "pjsip"`
+  (`android/overlay/.../SufficitPresence.kt`, anchors in `scripts/prepare-android.py`). While Não perturbe is on, the
+  app also declines incoming calls (486) that still arrive, such as internal calls. Sign-in now requests
+  `endpoints.phone`; sessions from older versions get 403 until the user signs out and in again (the app says so).
+  Built and signed with the pilot key, installed on the owner's Galaxy A51 (versionCode 10); no crash at startup.
 - [ ] Validation with a real installation on apoint: change the status, then
   confirm the PBX presence, the panel card and that queues skip `dnd`.

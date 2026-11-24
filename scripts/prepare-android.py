@@ -5,8 +5,8 @@ import subprocess
 import re
 import shutil
 
-VERSION_NAME = '0.2.7-pilot'
-VERSION_CODE = 9
+VERSION_NAME = '0.2.8-pilot'
+VERSION_CODE = 10
 
 root = Path(__file__).resolve().parents[1]
 app = root / 'build-android-app'
@@ -192,5 +192,46 @@ patch(java + 'core/CorePreferences.kt',
 patch(java + 'core/CorePreferences.kt',
       'get() = config.getBool("ui", "enable_secure_mode", true)',
       'get() = config.getBool("ui", "enable_secure_mode", false) // Sufficit: off by default')
+
+# Sufficit: availability ("Disponível" / "Não perturbe") in the side menu, above the
+# settings entry. It becomes the PBX presence of the extension (SufficitPresence.kt).
+patch('app/src/main/res/layout/drawer_menu.xml',
+      """                app:layout_constraintBottom_toTopOf="@id/settings" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:onClick="@{settingsClickedListener}\"""",
+      """                app:layout_constraintBottom_toTopOf="@id/sufficit_presence" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                style="@style/header_style"
+                android:id="@+id/sufficit_presence"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:padding="5dp"
+                android:text="Disponibilidade"
+                android:drawableStart="@drawable/bell_slash"
+                android:drawableEnd="@drawable/caret_right"
+                android:drawablePadding="8dp"
+                android:background="@drawable/squircle_transparent_button_background"
+                app:drawableTint="?attr/color_main2_500"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toTopOf="@id/settings" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:onClick="@{settingsClickedListener}\"""")
+patch(java + 'ui/main/fragment/DrawerMenuFragment.kt',
+      """        binding.setHelpClickedListener {""",
+      """        binding.sufficitPresence.text = org.linphone.sufficit.SufficitPresence.menuText()
+        binding.sufficitPresence.setOnClickListener {
+            org.linphone.sufficit.SufficitPresence.pick(requireActivity()) { text ->
+                binding.sufficitPresence.text = text
+            }
+        }
+
+        binding.setHelpClickedListener {""")
 
 print('Android overlay prepared at', app)

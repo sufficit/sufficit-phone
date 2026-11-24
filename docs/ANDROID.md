@@ -17,6 +17,13 @@ Código novo em `android/overlay/` (copiado no build); os arquivos upstream são
 
 Pendência no Identity: registrar um cliente próprio (`sufficit-phone-android`) com redirect de esquema privado; hoje `sufficit-phone-android` não existe (ID2052) e o cliente desktop recusa redirect customizado (ID2043).
 
+## Disponibilidade (0.2.8-pilot)
+
+Menu lateral → **Disponibilidade**: Disponível ou Não perturbe. A escolha vira a presença do ramal no PABX
+(API de presença do EndPoints, aparelho `pjsip`): filas e ligações diretas deixam de tocar o aparelho (ou todos
+os aparelhos do ramal, se a presença for unificada). Em Não perturbe o app também recusa chamadas que ainda
+cheguem. Quem entrou com versão anterior precisa sair e entrar de novo na conta Sufficit uma vez.
+
 ## Fontes e compilação
 
 Base: [Linphone Android 6.2.8](https://github.com/BelledonneCommunications/linphone-android/tree/dcaa165b77ed374b7beaedc8deae3e8a9b4fd30c), revisão fixada `dcaa165b77ed374b7beaedc8deae3e8a9b4fd30c`. SDK Maven `org.linphone:linphone-sdk-android:5.5.38`, compatível com essa interface. O SDK desktop/Android alpha anteriormente publicado pelo repositório não foi substituído. Fontes do SDK: https://gitlab.linphone.org/BC/public/linphone-sdk/-/tree/5.5.38. Licenças e atribuições upstream preservadas.
