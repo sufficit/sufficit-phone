@@ -1,6 +1,6 @@
 # Status of the app as PBX presence
 
-Context and decisions: `sufficit-pabx-asterisk/docs/PLAN-EXTENSION-PRESENCE.md`.
+Context and decisions: `sufficit-pabx-asterisk/docs/activities/202611241300-extension-presence.md`.
 When the user picks a status in the app, the app stores it as the native Asterisk
 presence of the assigned ramal, keyed by its GUID, through the EndPoints presence
 API. SIMPLE `PUBLISH` stays off, because Asterisk rejects client presence with
