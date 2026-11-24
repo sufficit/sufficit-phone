@@ -13,7 +13,6 @@ package org.linphone.sufficit
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
 import android.widget.Toast
 import org.linphone.LinphoneApplication.Companion.coreContext
@@ -102,8 +101,9 @@ object SufficitPresence {
                         .setTitle("Disponibilidade")
                         .setMessage("Para usar a disponibilidade, entre novamente na sua conta Sufficit. Depois escolha a disponibilidade outra vez.")
                         .setPositiveButton("Entrar") { _, _ ->
+                            // Opens the browser; its return (sufficitphone://login) brings the login screen back,
+                            // which goes on to the main screen once the session is renewed.
                             SufficitAuth.login()
-                            activity.startActivity(Intent(activity, SufficitLoginActivity::class.java))
                         }
                         .setNegativeButton("Agora não", null)
                         .show()

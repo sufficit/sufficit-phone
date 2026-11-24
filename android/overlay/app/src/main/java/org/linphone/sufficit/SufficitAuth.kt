@@ -581,7 +581,9 @@ object SufficitAuth {
      */
     fun putPresence(presence: String, done: (Int?) -> Unit) {
         executor.execute {
-            val ramal = plainPrefs.getString(KEY_RAMAL, null)
+            // The extension this phone actually registers with: the installation assignment may point to another
+            // extension whose configuration was not applied yet (2026-11-24: assigned 6001, registered 6090).
+            val ramal = registeredRamal() ?: plainPrefs.getString(KEY_RAMAL, null)
             if (ramal.isNullOrEmpty()) {
                 done(-1)
                 return@execute
@@ -591,9 +593,34 @@ object SufficitAuth {
             if (response?.first == 401 && ensureAccessToken(force = true)) {
                 response = http("PUT", "$ENDPOINTS_BASE/telephony/endpoint/presence", body, "application/json", true)
             }
-            Log.i("$TAG Presence [$presence] answered HTTP ${response?.first}")
+            Log.i("$TAG Presence [$presence] for extension [$ramal] answered HTTP ${response?.first}")
             done(response?.first)
         }
+    }
+
+    /** Extension GUID of the default SIP account (identity or its credential), or null when it is not a GUID. */
+    private fun registeredRamal(): String? {
+        val guid = Regex("^[0-9a-fA-F]{32}$")
+        val latch = CountDownLatch(1)
+        var result: String? = null
+        coreContext.postOnCoreThread { core ->
+            try {
+                val account = core.defaultAccount ?: core.accountList.firstOrNull()
+                val identity = account?.params?.identityAddress
+                val candidates = mutableListOf<String?>(identity?.username)
+                for (info in core.authInfoList) {
+                    if (identity == null || info.domain.isNullOrEmpty() || info.domain == identity.domain) {
+                        candidates.add(info.userid)
+                        candidates.add(info.username)
+                    }
+                }
+                result = candidates.firstOrNull { it != null && guid.matches(it) }?.lowercase()
+            } finally {
+                latch.countDown()
+            }
+        }
+        latch.await(5, TimeUnit.SECONDS)
+        return result
     }
 
     private fun registerInstallation() {
