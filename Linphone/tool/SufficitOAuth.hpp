@@ -1,6 +1,7 @@
 #ifndef SUFFICIT_OAUTH_H_
 #define SUFFICIT_OAUTH_H_
 
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QOAuth2AuthorizationCodeFlow>
 #include <QOAuthHttpServerReplyHandler>
@@ -10,6 +11,8 @@
 #include <QUuid>
 
 #include <functional>
+
+#include "tool/LinphoneEnums.hpp"
 
 // =============================================================================
 // Sufficit OAuth login (identity.sufficit.com.br) + installation registration.
@@ -47,14 +50,26 @@ class SufficitOAuth : public QObject {
 public:
 	explicit SufficitOAuth(QObject *parent = nullptr);
 
-	bool loggingIn() const { return mLoggingIn; }
-	bool waitingForRamal() const { return mWaitingForRamal; }
-	bool resuming() const { return mResuming; }
+	bool loggingIn() const {
+		return mLoggingIn;
+	}
+	bool waitingForRamal() const {
+		return mWaitingForRamal;
+	}
+	bool resuming() const {
+		return mResuming;
+	}
 
 	Q_INVOKABLE void login();
 	Q_INVOKABLE void resumeSession();
 	// Local sign-out only. Server-side revocation is a separate roadmap item.
 	Q_INVOKABLE void signOut();
+	// Stores the user's status as the native Asterisk presence of the assigned ramal (by GUID) through
+	// EndPoints. SIMPLE PUBLISH stays off: Asterisk rejects client presence (489). The PBX state is what
+	// queues, the telephony panel and colleagues' BLF use. Called when the user picks a status.
+	void publishPresence(LinphoneEnums::Presence presence, const QString &note);
+	// Asterisk presence body for a Linphone status: available, away, away+busy, dnd, unavailable, not_set.
+	static QJsonObject presenceBody(const QString &ramalId, LinphoneEnums::Presence presence, const QString &note);
 
 signals:
 	void loggingInChanged();
@@ -98,6 +113,13 @@ private:
 	bool mRegistered = false;
 	qint64 mAppliedConfigVersion = -1;
 	QString mAccessToken;
+	// Extension GUID assigned by provisioning (the key of the PBX presence).
+	QString mAssignedRamalId;
+	// Last status the user picked before a token/ramal was available; sent once they are.
+	bool mPresencePending = false;
+	LinphoneEnums::Presence mPendingPresence = LinphoneEnums::Presence::Undefined;
+	QString mPendingPresenceNote;
+	void flushPendingPresence();
 
 	static constexpr quint16 REDIRECT_PORT = 47623;
 	static constexpr const char *AUTHORITY = "https://identity.sufficit.com.br";
@@ -106,6 +128,9 @@ private:
 	// scope remains distinct from provisioning.manage.
 	static constexpr const char *SCOPE_INSTALLATION = "provisioning.installation";
 	static constexpr const char *PROVISIONING_BASE = "https://provisioning.sufficit.com.br:26511";
+	// EndPoints as the owner of the ramal (same scope the Chrome extension phone uses).
+	static constexpr const char *SCOPE_PHONE = "endpoints.phone";
+	static constexpr const char *ENDPOINTS_BASE = "https://endpoints.sufficit.com.br";
 	static constexpr const char *KEYCHAIN_SERVICE = "SufficitPhone";
 	static constexpr const char *KEYCHAIN_REFRESH_TOKEN_KEY = "oauth-refresh-token";
 	static constexpr int HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;

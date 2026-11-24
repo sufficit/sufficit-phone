@@ -21,7 +21,7 @@
       "requirePkce": true,
       "grantTypes": [ "authorization_code", "refresh_token" ],
       "responseTypes": [ "code" ],
-      "scopes": [ "openid", "profile", "offline_access", "provisioning.installation" ],
+      "scopes": [ "openid", "profile", "offline_access", "provisioning.installation", "endpoints.phone" ],
       "redirectUris": [ "http://127.0.0.1:47623/", "http://localhost:47623/" ]
     }
   ]

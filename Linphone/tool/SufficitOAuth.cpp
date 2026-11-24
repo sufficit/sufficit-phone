@@ -28,6 +28,7 @@ SufficitOAuth::SufficitOAuth(QObject *parent) : QObject(parent) {
 	connect(mHeartbeatTimer, &QTimer::timeout, this, &SufficitOAuth::sendHeartbeat);
 
 	QSettings settings("Sufficit", "SufficitPhone");
+	mAssignedRamalId = settings.value("assignedRamalId").toString();
 	const QVariant applied = settings.value("appliedConfigVersion");
 	mAppliedConfigVersion = applied.isValid() ? applied.toLongLong() : -1;
 }
@@ -185,7 +186,13 @@ void SufficitOAuth::configureFlow(bool interactive) {
 	mFlow->setAuthorizationUrl(QUrl(QString(AUTHORITY) + "/connect/authorize"));
 	mFlow->setTokenUrl(QUrl(QString(AUTHORITY) + "/connect/token"));
 	mFlow->setClientIdentifier(CLIENT_ID);
-	mFlow->setRequestedScopeTokens({"openid", "profile", "offline_access", SCOPE_INSTALLATION});
+	// endpoints.phone (PBX presence of the user's ramal) is requested on interactive sign-in. The silent refresh
+	// sends no scope, so the server keeps exactly what the session was granted: asking an older session for a scope
+	// it never had could be refused (back to the browser), and asking a newer one for less would drop endpoints.phone.
+	// Older sessions gain it on their next interactive sign-in; until then a presence write answers 401/403 (logged).
+	if (interactive)
+		mFlow->setRequestedScopeTokens({"openid", "profile", "offline_access", SCOPE_INSTALLATION, SCOPE_PHONE});
+	else mFlow->setRequestedScopeTokens({});
 	mFlow->setPkceMethod(QOAuth2AuthorizationCodeFlow::PkceMethod::S256);
 	mFlow->setNetworkAccessManager(mNetwork);
 	// Keep the access token fresh without user interaction: a session that
@@ -218,7 +225,10 @@ void SufficitOAuth::configureFlow(bool interactive) {
 	// An access token changes both after the authorization-code grant and
 	// every successful refresh. Keep the request credential synchronized with
 	// QAbstractOAuth2 before the next provisioning/heartbeat request.
-	connect(mFlow, &QAbstractOAuth::tokenChanged, this, [this](const QString &token) { mAccessToken = token; });
+	connect(mFlow, &QAbstractOAuth::tokenChanged, this, [this](const QString &token) {
+		mAccessToken = token;
+		flushPendingPresence();
+	});
 	// IdentityServer may rotate the refresh token on use; persisting the
 	// rotated value is what keeps the next restart able to resume silently.
 	connect(mFlow, &QAbstractOAuth2::refreshTokenChanged, this,
@@ -378,6 +388,12 @@ void SufficitOAuth::pollInstallation() {
 
 		mPollTimer->stop();
 		setWaitingForRamal(false);
+		const QString ramalId = obj.value("assignedRamalId").toString();
+		if (ramalId != mAssignedRamalId) {
+			mAssignedRamalId = ramalId;
+			QSettings("Sufficit", "SufficitPhone").setValue("assignedRamalId", mAssignedRamalId);
+		}
+		flushPendingPresence();
 
 		const qint64 configVersion = (qint64)obj.value("configVersion").toDouble();
 		const QString provisioningUrl = obj.value("provisioningUrl").toString();
@@ -455,5 +471,65 @@ void SufficitOAuth::sendHeartbeat() {
 		if (reply->error() != QNetworkReply::NoError) {
 			qWarning() << "[SufficitOAuth] heartbeat failed; HTTP" << status << reply->errorString();
 		}
+	});
+}
+
+QJsonObject SufficitOAuth::presenceBody(const QString &ramalId, LinphoneEnums::Presence presence, const QString &note) {
+	QJsonObject body;
+	body["endPointId"] = ramalId;
+	QString state;
+	switch (presence) {
+		case LinphoneEnums::Presence::Online:
+			state = QStringLiteral("available");
+			break;
+		case LinphoneEnums::Presence::Away:
+			state = QStringLiteral("away");
+			break;
+		case LinphoneEnums::Presence::Busy:
+			// Asterisk has no "busy" presence: away with subtype busy ("Ocupado").
+			state = QStringLiteral("away");
+			body["subtype"] = QStringLiteral("busy");
+			break;
+		case LinphoneEnums::Presence::DoNotDisturb:
+			state = QStringLiteral("dnd");
+			break;
+		case LinphoneEnums::Presence::Offline:
+			state = QStringLiteral("unavailable");
+			break;
+		default:
+			state = QStringLiteral("not_set");
+			break;
+	}
+	body["state"] = state;
+	const QString trimmed = note.trimmed().left(140);
+	if (state != QStringLiteral("not_set") && !trimmed.isEmpty()) body["message"] = trimmed;
+	return body;
+}
+
+void SufficitOAuth::publishPresence(LinphoneEnums::Presence presence, const QString &note) {
+	mPendingPresence = presence;
+	mPendingPresenceNote = note;
+	mPresencePending = true;
+	flushPendingPresence();
+}
+
+void SufficitOAuth::flushPendingPresence() {
+	if (!mPresencePending || mAccessToken.isEmpty() || mAssignedRamalId.isEmpty()) return;
+	mPresencePending = false;
+	QNetworkRequest request = authorized(QUrl(QString(ENDPOINTS_BASE) + "/telephony/endpoint/presence"));
+	request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+	const QByteArray body = QJsonDocument(presenceBody(mAssignedRamalId, mPendingPresence, mPendingPresenceNote))
+	                            .toJson(QJsonDocument::Compact);
+	auto *reply = mNetwork->put(request, body);
+	connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+		reply->deleteLater();
+		const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+		if (status == 200) {
+			qInfo() << "[SufficitOAuth] presence stored on the PBX";
+			return;
+		}
+		// 401/403: a session from before the endpoints.phone scope; the next interactive sign-in grants it.
+		// 502: some voice node did not apply it; the next status change retries.
+		qWarning() << "[SufficitOAuth] presence not stored, HTTP" << status << reply->errorString();
 	});
 }

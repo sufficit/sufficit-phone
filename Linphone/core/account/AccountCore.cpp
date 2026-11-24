@@ -22,6 +22,7 @@
 #include "core/App.hpp"
 #include "model/object/VariantObject.hpp"
 #include "model/tool/ToolModel.hpp"
+#include "tool/SufficitOAuth.hpp"
 #include "tool/Utils.hpp"
 #include "tool/thread/SafeConnection.hpp"
 #include <QHostInfo>
@@ -251,6 +252,9 @@ void AccountCore::setSelf(QSharedPointer<AccountCore> me) {
 		    mAccountModelConnection->invokeToCore([this, presence, userInitiated]() {
 			    if (userInitiated) mExplicitPresence = presence;
 			    else mExplicitPresence = LinphoneEnums::Presence::Undefined;
+			    // Sufficit: what the user picks becomes the PBX presence of the ramal (queues, panel, BLF).
+			    if (userInitiated && App::getInstance() && App::getInstance()->getSufficitOAuth())
+				    App::getInstance()->getSufficitOAuth()->publishPresence(presence, mPresenceNote);
 			    mPresence = presence;
 			    emit presenceChanged();
 		    });

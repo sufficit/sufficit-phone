@@ -125,7 +125,7 @@ void AccountModel::setPictureUri(QString uri) {
 	// Hack because Account doesn't provide callbacks on updated data
 	// emit pictureUriChanged(uri);
 	auto core = CoreModel::getInstance()->getCore();
-	emit CoreModel::getInstance()->defaultAccountChanged(core, core->getDefaultAccount());
+	emit CoreModel::getInstance() -> defaultAccountChanged(core, core->getDefaultAccount());
 }
 
 void AccountModel::onDefaultAccountChanged() {
@@ -182,7 +182,7 @@ void AccountModel::setDisplayName(QString displayName) {
 	// Hack because Account doesn't provide callbacks on updated data
 	// emit displayNameChanged(displayName);
 	auto core = CoreModel::getInstance()->getCore();
-	emit CoreModel::getInstance()->defaultAccountChanged(core, core->getDefaultAccount());
+	emit CoreModel::getInstance() -> defaultAccountChanged(core, core->getDefaultAccount());
 }
 
 void AccountModel::setDialPlan(int index) {
@@ -528,10 +528,10 @@ void AccountModel::setPresence(LinphoneEnums::Presence presence,
                                QString presenceNote) {
 	mustBeInLinphoneThread(log().arg(Q_FUNC_INFO));
 
-	if (!mMonitor->getParams()->publishEnabled()) {
-		lDebug() << log().arg("cannot set presence as publish is disabled in account params, return");
-		return;
-	}
+	// Sufficit: the status is stored as the PBX presence through EndPoints (SufficitOAuth::publishPresence), so it
+	// works with SIMPLE publish disabled; setPresenceModel below only sends PUBLISH when the account enables it.
+	if (!mMonitor->getParams()->publishEnabled())
+		lDebug() << log().arg("publish disabled in account params: presence kept local and stored on the PBX");
 
 	lDebug() << log().arg("presence set request to: " + LinphoneEnums::toString(presence) + " | user initiated? " +
 	                      (userInitiated ? "true" : "false") + " | reset to auto? " + (resetToAuto ? "true" : "false"));
