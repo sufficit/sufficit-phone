@@ -113,10 +113,20 @@ jobs:
       - name: Install build dependencies
         run: |
           brew install doxygen graphviz nasm yasm meson ninja
-          python3 -m pip install --break-system-packages pystache six cython pdoc
+          PIP_ARGS="--break-system-packages"
+          SITE_EXPR='import sysconfig; print(sysconfig.get_paths()["purelib"])'
+          if [ "$(uname -m)" = "x86_64" ]; then
+            # Runner Intel: /usr/local não é gravável pelo usuário do runner
+            # (Permission denied em /usr/local/testing); instala no usuário.
+            PIP_ARGS="$PIP_ARGS --user"
+            SITE_EXPR='import site; print(site.getusersitepackages())'
+            echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
+            export PATH="$(python3 -m site --user-base)/bin:$PATH"
+          fi
+          python3 -m pip install $PIP_ARGS pystache six cython pdoc
           # O generate do app roda CMake com o Python do hostedtoolcache; exporta
           # PYTHONPATH para que qualquer interpretador encontre os módulos.
-          SITE=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
+          SITE=$(python3 -c "$SITE_EXPR")
           echo "PYTHONPATH=$SITE" >> "$GITHUB_ENV"
           echo "site-packages: $SITE"
           # macOS não tem "sha256sum" (só shasum -a 256), mas o CMake do
