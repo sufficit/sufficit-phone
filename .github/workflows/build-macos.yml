@@ -18,8 +18,19 @@ env:
 
 jobs:
   dmg:
-    runs-on: macos-15
+    name: dmg (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+            suffix: ''
+          - arch: x86_64
+            runner: macos-15-intel
+            suffix: '-intel'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -166,12 +177,12 @@ jobs:
           mkdir -p dist
           f=$(find build/OUTPUT -path '*/Packages/*.dmg' -type f | head -n1)
           if [ -z "$f" ]; then echo "DMG not found"; find build/OUTPUT -maxdepth 3 -type f | head -50; exit 1; fi
-          cp "$f" "dist/sufficit-phone-macos.dmg"
+          cp "$f" "dist/sufficit-phone-macos${{ matrix.suffix }}.dmg"
           (cd dist && shasum -a 256 -- * > SHA256SUMS)
           ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sufficit-phone-macos
+          name: sufficit-phone-macos${{ matrix.suffix }}
           path: dist/*
           if-no-files-found: error

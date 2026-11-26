@@ -2,7 +2,7 @@
 
 - `build-linux.yml` — AppImage (ubuntu-24.04, Qt 6.10.3 via aqt).
 - `build-windows.yml` — instalador NSIS (windows-2022, VS 2022, Qt 6.10.3 via aqt).
-- `build-macos.yml` — DMG (macos-14, Qt 6.10.3 via aqt, não assinado).
+- `build-macos.yml` — DMG arm64 (macos-15) e Intel x86_64 (macos-15-intel), Qt 6.10.3 via aqt, não assinado).
 - `build-android.yml` — SDK linphone-sdk em AAR único com as 3 ABIs (arm64, armv7, x86_64) via gradle (biblioteca para um futuro app Android).
 - `build-ios.yml` — SDK linphone-sdk para simulador (zip + xcframeworks, sem assinatura) (biblioteca para um futuro app iOS).
 - `release.yml` — ao empurrar uma tag `X.Y.Z` (com ou sem prefixo `v`, incluindo sufixos `-alpha`/`-beta`/`-rc`), chama os cinco builds, publica os instaladores desktop, empacota Linux em AppImage + `.deb` + `.rpm` + `.tar.gz`, publica os SDKs Android/iOS e gera `SHA256SUMS`; sufixos de pré-release publicam como prerelease. Tags históricas anteriores à CI têm releases de registro (sem binários) criados por script.
