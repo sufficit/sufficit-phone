@@ -18,8 +18,19 @@ env:
 
 jobs:
   dmg:
-    runs-on: macos-15
+    name: dmg (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+            suffix: ''
+          - arch: x86_64
+            runner: macos-15-intel
+            suffix: '-intel'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -102,10 +113,20 @@ jobs:
       - name: Install build dependencies
         run: |
           brew install doxygen graphviz nasm yasm meson ninja
-          python3 -m pip install --break-system-packages pystache six cython pdoc
+          PIP_ARGS="--break-system-packages"
+          SITE_EXPR='import sysconfig; print(sysconfig.get_paths()["purelib"])'
+          if [ "$(uname -m)" = "x86_64" ]; then
+            # Runner Intel: /usr/local não é gravável pelo usuário do runner
+            # (Permission denied em /usr/local/testing); instala no usuário.
+            PIP_ARGS="$PIP_ARGS --user"
+            SITE_EXPR='import site; print(site.getusersitepackages())'
+            echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
+            export PATH="$(python3 -m site --user-base)/bin:$PATH"
+          fi
+          python3 -m pip install $PIP_ARGS pystache six cython pdoc
           # O generate do app roda CMake com o Python do hostedtoolcache; exporta
           # PYTHONPATH para que qualquer interpretador encontre os módulos.
-          SITE=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
+          SITE=$(python3 -c "$SITE_EXPR")
           echo "PYTHONPATH=$SITE" >> "$GITHUB_ENV"
           echo "site-packages: $SITE"
           # macOS não tem "sha256sum" (só shasum -a 256), mas o CMake do
@@ -166,12 +187,12 @@ jobs:
           mkdir -p dist
           f=$(find build/OUTPUT -path '*/Packages/*.dmg' -type f | head -n1)
           if [ -z "$f" ]; then echo "DMG not found"; find build/OUTPUT -maxdepth 3 -type f | head -50; exit 1; fi
-          cp "$f" "dist/sufficit-phone-macos.dmg"
+          cp "$f" "dist/sufficit-phone-macos${{ matrix.suffix }}.dmg"
           (cd dist && shasum -a 256 -- * > SHA256SUMS)
           ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sufficit-phone-macos
+          name: sufficit-phone-macos${{ matrix.suffix }}
           path: dist/*
           if-no-files-found: error
