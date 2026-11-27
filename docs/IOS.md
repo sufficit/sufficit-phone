@@ -19,6 +19,9 @@ Na conta Apple (developer.apple.com / App Store Connect):
 4. Chave APNs (.p8) para push de chamadas (VoIP/PushKit).
 5. Secrets no GitHub: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`.
 
+## Já no código (overlay)
+- Login Sufficit obrigatório (`ios/overlay/Linphone/SufficitAuth.swift`, `SufficitLoginView.swift`): OAuth PKCE com redirect loopback, refresh token no Keychain, registro da instalação, espera do ramal (botão "Abrir Meu Provisionamento", sem indicador de carregamento), provisionamento de uso único, heartbeat `ios` e NOTIFY `check-sync`.
+- O Welcome e "Adicionar conta" levam ao login Sufficit, não ao assistente SIP manual (patches em `scripts/prepare-ios.py`, que aborta se o upstream divergir).
+
 ## A fazer no código
-Login Sufficit obrigatório, provisionamento, NOTIFY check-sync, discagem
-simples e limite de contas — portar do overlay Android.
+Discagem simples (sem sugerir outros servidores/endereços SIP), limite de contas e presença — portar do overlay Android. Validado só por compilação no CI (sem aparelho).
