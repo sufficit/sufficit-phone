@@ -43,6 +43,51 @@ edit(pbx, ids + [
     ('DEVELOPMENT_TEAM = Z2V957B3D6;', f'DEVELOPMENT_TEAM = {TEAM};' if TEAM else 'DEVELOPMENT_TEAM = "";'),
 ])
 
+# --- Login Sufficit obrigatorio -------------------------------------------------------------
+def patch_once(rel, old, new):
+    f = APP / rel
+    t = f.read_text()
+    if old not in t:
+        raise SystemExit(f'ancora nao encontrada em {rel}: {old[:60]!r} (upstream mudou?)')
+    f.write_text(t.replace(old, new, 1))
+
+# 1) Arquivos novos entram no alvo Linphone (o grupo nao e sincronizado), ao lado do SplashScreen.swift.
+def add_sources(names):
+    t = (APP / pbx).read_text()
+    anchor_build = 'D7A03FC62ACC458A0081A588 /* SplashScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A03FC52ACC458A0081A588 /* SplashScreen.swift */; };\n'
+    anchor_ref = 'D7A03FC52ACC458A0081A588 /* SplashScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };\n'
+    anchor_group = '\t\t\t\tD7A03FC52ACC458A0081A588 /* SplashScreen.swift */,\n'
+    anchor_phase = '\t\t\t\tD7A03FC62ACC458A0081A588 /* SplashScreen.swift in Sources */,\n'
+    for a in (anchor_build, anchor_ref, anchor_group, anchor_phase):
+        if t.count(a) != 1:
+            raise SystemExit('ancora do pbxproj nao encontrada ou duplicada: ' + a[:70])
+    for i, n in enumerate(names):
+        ref, bf = f'5F1C0A{i:02d}0000000000000001', f'5F1C0A{i:02d}0000000000000002'
+        t = t.replace(anchor_build, anchor_build + f'\t\t{bf} /* {n} in Sources */ = {{isa = PBXBuildFile; fileRef = {ref} /* {n} */; }};\n', 1)
+        t = t.replace(anchor_ref, anchor_ref + f'\t\t{ref} /* {n} */ = {{isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = {n}; sourceTree = "<group>"; }};\n', 1)
+        t = t.replace(anchor_group, anchor_group + f'\t\t\t\t{ref} /* {n} */,\n', 1)
+        t = t.replace(anchor_phase, anchor_phase + f'\t\t\t\t{bf} /* {n} in Sources */,\n', 1)
+    (APP / pbx).write_text(t)
+
+add_sources(['SufficitAuth.swift', 'SufficitLoginView.swift'])
+
+# 2) Sem conta: tela de login Sufficit em vez do assistente SIP manual.
+patch_once('Linphone/LinphoneApp.swift',
+           '\t\t\t\t\t\tAssistantView()\n',
+           '\t\t\t\t\t\tSufficitLoginView()\n')
+# O Welcome upstream leva ao assistente SIP: pula direto para o login.
+patch_once('Linphone/LinphoneApp.swift',
+           '\t\t!sharedMainViewModel.welcomeViewDisplayed\n',
+           '\t\tfalse\n')
+# Sessao Sufficit retomada ja na abertura, mesmo com conta SIP configurada.
+patch_once('Linphone/LinphoneApp.swift',
+           '\tfunc application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {\n',
+           '\tfunc application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {\n\t\tSufficitAuth.shared.start()\n')
+# 3) Menu lateral: "Adicionar uma conta" leva ao login Sufficit (nunca ao SIP manual).
+patch_once('Linphone/UI/Main/Fragments/SideMenu.swift',
+           '\t\t\t\t\t\t\tisShowLoginFragment = true\n',
+           '\t\t\t\t\t\t\tSufficitAuth.shared.login()\n')
+
 overlay = ROOT / 'ios' / 'overlay'
 for f in overlay.rglob('*'):
     if f.is_file():
