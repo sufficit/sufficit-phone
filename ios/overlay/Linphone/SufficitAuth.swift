@@ -516,8 +516,8 @@ final class SufficitAuth: NSObject, ObservableObject, ASWebAuthenticationPresent
 				var candidates: [String] = []
 				if let user = account?.params?.identityAddress?.username { candidates.append(user) }
 				for info in core.authInfoList {
-					candidates.append(info.userid)
-					candidates.append(info.username)
+					if let userid = info.userid { candidates.append(userid) }
+					if let username = info.username { candidates.append(username) }
 				}
 				let inCore = !assigned.isEmpty && candidates.contains { $0.caseInsensitiveCompare(assigned) == .orderedSame }
 				let guid = candidates.first { $0.range(of: "^[0-9a-fA-F]{32}$", options: .regularExpression) != nil }?.lowercased()
