@@ -1,0 +1,82 @@
+# Publishes an Android App Bundle to the Google Play internal testing track of
+# com.sufficit.phone through Workload Identity Federation (genius-release).
+# The AAB is built and signed locally (the upload key is not stored in GitHub);
+# either upload it here through a release asset URL or reuse a version code that
+# was already uploaded to Play.
+name: Play internal testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      existing_version_code:
+        description: versionCode already uploaded to Play (leave empty to upload an AAB)
+        required: false
+        type: string
+      aab_url:
+        description: HTTPS URL of a signed AAB (for example a GitHub release asset)
+        required: false
+        type: string
+      release_name:
+        description: Release name shown in Play (for example 0.2.7-pilot)
+        required: false
+        type: string
+      release_notes:
+        description: pt-BR release notes (max 500 characters)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate inputs
+        env:
+          EXISTING: ${{ inputs.existing_version_code }}
+          AAB_URL: ${{ inputs.aab_url }}
+        run: |
+          if [ -z "$EXISTING" ] && [ -z "$AAB_URL" ]; then
+            echo "Provide existing_version_code or aab_url" >&2; exit 2
+          fi
+          if [ -n "$EXISTING" ] && [ -n "$AAB_URL" ]; then
+            echo "Provide only one of existing_version_code or aab_url" >&2; exit 2
+          fi
+
+      - name: Download AAB
+        if: ${{ inputs.aab_url != '' }}
+        env:
+          AAB_URL: ${{ inputs.aab_url }}
+        run: |
+          case "$AAB_URL" in https://*) ;; *) echo "aab_url must be HTTPS" >&2; exit 2 ;; esac
+          curl --fail --location --silent --show-error -o "$RUNNER_TEMP/app.aab" "$AAB_URL"
+          test -s "$RUNNER_TEMP/app.aab"
+
+      - name: Authenticate to Google Play
+        id: google-auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_RELEASE_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: |
+            https://www.googleapis.com/auth/cloud-platform
+            https://www.googleapis.com/auth/androidpublisher
+
+      - name: Publish to the internal track
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+          PLAY_EXISTING_VERSION_CODE: ${{ inputs.existing_version_code }}
+          PLAY_RELEASE_NAME: ${{ inputs.release_name }}
+          PLAY_RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          if [ -n "$PLAY_EXISTING_VERSION_CODE" ]; then
+            scripts/publish-play-internal-track.sh
+          else
+            scripts/publish-play-internal-track.sh "$RUNNER_TEMP/app.aab"
+          fi
