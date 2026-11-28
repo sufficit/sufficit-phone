@@ -23,5 +23,9 @@ Na conta Apple (developer.apple.com / App Store Connect):
 - Login Sufficit obrigatório (`ios/overlay/Linphone/SufficitAuth.swift`, `SufficitLoginView.swift`): OAuth PKCE com redirect loopback, refresh token no Keychain, registro da instalação, espera do ramal (botão "Abrir Meu Provisionamento", sem indicador de carregamento), provisionamento de uso único, heartbeat `ios` e NOTIFY `check-sync`.
 - O Welcome e "Adicionar conta" levam ao login Sufficit, não ao assistente SIP manual (patches em `scripts/prepare-ios.py`, que aborta se o upstream divergir).
 
-## A fazer no código
-Discagem simples (sem sugerir outros servidores/endereços SIP), limite de contas e presença — portar do overlay Android. Validado só por compilação no CI (sem aparelho).
+- Discagem simples: `hide_sip_addresses` sempre ligado e filtro de contatos `*` (sem diretório linphone.org nem endereços SIP), ligando pelo ramal provisionado.
+- Limite de contas: `[ui] max_account` (0 = sem limite) do provisionamento esconde "Adicionar uma conta" quando atingido.
+- Disponibilidade (`SufficitPresence.swift`): "Disponível" / "Não perturbe" no menu lateral, enviada ao PBX pela API de presença do EndPoints (dispositivo `pjsip`); em "Não perturbe" o app também recusa chamadas que chegarem.
+
+## A fazer
+Teste em aparelho real (validado só por compilação no CI, sem Mac/iPhone), assinatura/TestFlight e push APNs.

@@ -69,7 +69,7 @@ def add_sources(names):
         t = t.replace(anchor_phase, anchor_phase + f'\t\t\t\t{bf} /* {n} in Sources */,\n', 1)
     (APP / pbx).write_text(t)
 
-add_sources(['SufficitAuth.swift', 'SufficitLoginView.swift'])
+add_sources(['SufficitAuth.swift', 'SufficitLoginView.swift', 'SufficitPresence.swift'])
 
 # 2) Sem conta: tela de login Sufficit em vez do assistente SIP manual.
 patch_once('Linphone/LinphoneApp.swift',
@@ -87,6 +87,30 @@ patch_once('Linphone/LinphoneApp.swift',
 patch_once('Linphone/UI/Main/Fragments/SideMenu.swift',
            '\t\t\t\t\t\t\tisShowLoginFragment = true\n',
            '\t\t\t\t\t\t\tSufficitAuth.shared.login()\n')
+
+# 4) Limite de contas: [ui] max_account (0 = sem limite) vem do provisionamento. Com o limite atingido
+#    o "Adicionar uma conta" some do menu (a chave existe no upstream, mas nada a usava).
+patch_once('Linphone/UI/Main/Fragments/SideMenu.swift',
+           '\t\t\t\t\tHStack {\n\t\t\t\t\t\tImage("plus-circle")\n',
+           '\t\t\t\t\tif AppServices.corePreferences.maxAccountsCount == 0 || CoreContext.shared.accounts.count < AppServices.corePreferences.maxAccountsCount {\n'
+           '\t\t\t\t\tHStack {\n\t\t\t\t\t\tImage("plus-circle")\n')
+patch_once('Linphone/UI/Main/Fragments/SideMenu.swift',
+           '\t\t\t\t\t\t\tSufficitAuth.shared.login()\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n',
+           '\t\t\t\t\t\t\tSufficitAuth.shared.login()\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\t}\n')
+
+# 5) Discagem simples: liga sempre pelo ramal provisionado; nunca mostra servidores/enderecos SIP
+#    nem o diretorio linphone.org.
+patch_once('Linphone/Core/CorePreferences.swift',
+           '\t\tget { _hideSipAddresses }\n',
+           '\t\tget { true } // Sufficit: nunca mostrar servidores SIP ao usuario\n')
+patch_once('Linphone/Core/CorePreferences.swift',
+           '\t\t\tlet raw = config.getString(section: "ui", key: "contacts_filter", defaultString: "")\n\t\t\treturn safeString(raw, defaultValue: "")\n',
+           '\t\t\t_ = config // Sufficit: qualquer dominio SIP (sem filtro do diretorio linphone.org)\n\t\t\treturn "*"\n')
+
+# 6) Disponibilidade no menu lateral, acima de Configuracoes.
+patch_once('Linphone/UI/Main/Fragments/SideMenu.swift',
+           '\t\t\t\t\t\tSideMenuEntry(\n\t\t\t\t\t\t\ticonName: "gear",\n',
+           '\t\t\t\t\t\tSufficitPresenceEntry()\n\t\t\t\t\t\t\n\t\t\t\t\t\tSideMenuEntry(\n\t\t\t\t\t\t\ticonName: "gear",\n')
 
 overlay = ROOT / 'ios' / 'overlay'
 for f in overlay.rglob('*'):

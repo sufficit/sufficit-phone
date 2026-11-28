@@ -442,6 +442,7 @@ final class SufficitAuth: NSObject, ObservableObject, ASWebAuthenticationPresent
 		})
 		notifyDelegate = notify
 		CoreContext.shared.addCoreDelegateStub(delegate: notify)
+		SufficitPresence.shared.install()
 	}
 
 	private func onConfigurationApplied(_ version: Int64) {
@@ -495,6 +496,46 @@ final class SufficitAuth: NSObject, ObservableObject, ASWebAuthenticationPresent
 				if !self.pollScheduled && self.pendingConfigVersion < 0 { self.pollInstallation() }
 			}
 			self.heartbeatLoop(generation)
+		}
+	}
+
+	// MARK: - Presenca (Disponivel / Nao perturbe)
+
+	private let endpointsBase = "https://endpoints.sufficit.com.br"
+
+	/// Envia a presenca do ramal ao PBX. `done` recebe o HTTP (200 = ok), 401/403 = precisa entrar de novo,
+	/// -1 = aparelho sem ramal atribuido, 0 = sem resposta. Sempre chamado na fila principal.
+	func putPresence(_ state: String, done: @escaping (Int) -> Void) {
+		let finish: (Int) -> Void = { code in DispatchQueue.main.async { done(code) } }
+		worker.async {
+			let assigned = self.defaults.string(forKey: self.kRamal) ?? ""
+			CoreContext.shared.doOnCoreQueue { core in
+				// O ramal com que este aparelho realmente registra: o atribuido, se a conta dele esta no Core;
+				// senao o GUID da conta em uso; o atribuido como ultimo recurso.
+				let account = core.defaultAccount ?? core.accountList.first
+				var candidates: [String] = []
+				if let user = account?.params?.identityAddress?.username { candidates.append(user) }
+				for info in core.authInfoList {
+					if let userid = info.userid { candidates.append(userid) }
+					if let username = info.username { candidates.append(username) }
+				}
+				let inCore = !assigned.isEmpty && candidates.contains { $0.caseInsensitiveCompare(assigned) == .orderedSame }
+				let guid = candidates.first { $0.range(of: "^[0-9a-fA-F]{32}$", options: .regularExpression) != nil }?.lowercased()
+				let ramal = inCore ? assigned : (guid ?? assigned)
+				self.worker.async {
+					if ramal.isEmpty { finish(-1); return }
+					if self.refreshToken == nil && self.accessToken == nil { finish(401); return }
+					let payload: [String: Any] = ["endPointId": ramal, "state": state, "device": "pjsip"]
+					let text = (try? JSONSerialization.data(withJSONObject: payload)).flatMap { String(data: $0, encoding: .utf8) }
+					let url = self.endpointsBase + "/telephony/endpoint/presence"
+					var r = self.ensureAccessToken() ? self.http("PUT", url, body: text, contentType: "application/json", authorized: true) : nil
+					if r?.status == 401 && self.ensureAccessToken(force: true) {
+						r = self.http("PUT", url, body: text, contentType: "application/json", authorized: true)
+					}
+					Log.info("[Sufficit Presence] \(state) for extension [\(ramal)] answered HTTP \(r?.status ?? 0)")
+					finish(r?.status ?? 0)
+				}
+			}
 		}
 	}
 
